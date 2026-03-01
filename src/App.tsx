@@ -294,7 +294,12 @@ export function App() {
                    projectName.toLowerCase().includes('puzzle') ||
                    projectName.toLowerCase().includes('quiz') ||
                    projectName.toLowerCase().includes('racing') ||
-                   projectName.toLowerCase().includes('adventure');
+                   projectName.toLowerCase().includes('adventure') ||
+                   projectName.toLowerCase().includes('break') ||
+                   projectName.toLowerCase().includes('blocks') ||
+                   projectName.toLowerCase().includes('minecraft') ||
+                   projectName.toLowerCase().includes('mine') ||
+                   projectName.toLowerCase().includes('block');
     
     const files: ProjectFile[] = [
       {
@@ -321,7 +326,68 @@ export function App() {
 
   // Generate game HTML
   const generateGameHTML = (projectName: string, description: string) => {
-    return `<!DOCTYPE html>
+    // Check if it's a block-breaking game
+    const isBlockGame = projectName.toLowerCase().includes('break') || 
+                        projectName.toLowerCase().includes('blocks') ||
+                        projectName.toLowerCase().includes('minecraft') ||
+                        projectName.toLowerCase().includes('mine');
+    
+    if (isBlockGame) {
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${projectName}</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>${projectName}</h1>
+            <p>${description}</p>
+            <div class="game-stats">
+                <span id="score">Score: 0</span>
+                <span id="blocks">Blocks: 0</span>
+                <span id="level">Level: 1</span>
+                <span id="tool">Tool: Pickaxe</span>
+            </div>
+        </header>
+        <main>
+            <div class="game-board" id="gameBoard">
+                <div class="game-message" id="gameMessage">
+                    <h2>Ready to Break Blocks?</h2>
+                    <p>Click Start Game to begin mining!</p>
+                    <button id="startBtn">Start Game</button>
+                </div>
+            </div>
+            <div class="inventory">
+                <h3>Inventory</h3>
+                <div class="inventory-items">
+                    <div class="item" data-type="wood">🪵 Wood: <span id="woodCount">0</span></div>
+                    <div class="item" data-type="stone">🪨 Stone: <span id="stoneCount">0</span></div>
+                    <div class="item" data-type="iron">⚙️ Iron: <span id="ironCount">0</span></div>
+                    <div class="item" data-type="gold">🪙 Gold: <span id="goldCount">0</span></div>
+                    <div class="item" data-type="diamond">💎 Diamond: <span id="diamondCount">0</span></div>
+                </div>
+            </div>
+            <div class="game-controls">
+                <button class="tool-btn active" data-tool="pickaxe">⛏️ Pickaxe</button>
+                <button class="tool-btn" data-tool="axe">🪓 Axe</button>
+                <button class="tool-btn" data-tool="shovel">🔨 Shovel</button>
+                <button class="tool-btn" data-tool="sword">⚔️ Sword</button>
+            </div>
+        </main>
+        <footer>
+            <p>🎮 ${projectName} - Created with AI</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>`;
+    } else {
+      // Default game template
+      return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -363,6 +429,7 @@ export function App() {
     <script src="script.js"></script>
 </body>
 </html>`;
+    }
   };
 
   // Generate app HTML
@@ -441,7 +508,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: #fff;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #8B4513 0%, #654321 100%);
     min-height: 100vh;
     overflow-x: hidden;
 }
@@ -479,7 +546,7 @@ header h1 {
 }
 
 .game-board {
-    background: rgba(255,255,255,0.1);
+    background: rgba(139, 69, 19, 0.3);
     border: 3px solid rgba(255,255,255,0.3);
     border-radius: 20px;
     height: 400px;
@@ -504,8 +571,8 @@ header h1 {
 }
 
 #startBtn {
-    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-    color: white;
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+    color: #333;
     border: none;
     padding: 15px 30px;
     font-size: 1.2rem;
@@ -513,11 +580,42 @@ header h1 {
     cursor: pointer;
     transition: all 0.3s ease;
     margin-top: 20px;
+    font-weight: bold;
 }
 
 #startBtn:hover {
     transform: scale(1.1);
-    box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+    box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+}
+
+.inventory {
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.inventory h3 {
+    text-align: center;
+    margin-bottom: 15px;
+    color: #FFD700;
+}
+
+.inventory-items {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.item {
+    background: rgba(255,255,255,0.1);
+    padding: 10px 15px;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 100px;
+    border: 1px solid rgba(255,255,255,0.2);
 }
 
 .game-controls {
@@ -527,26 +625,67 @@ header h1 {
     flex-wrap: wrap;
 }
 
-.game-controls button {
+.tool-btn {
     background: rgba(255,255,255,0.2);
     color: white;
     border: 2px solid rgba(255,255,255,0.3);
-    width: 60px;
-    height: 60px;
-    font-size: 1.5rem;
+    padding: 15px 20px;
+    font-size: 1.2rem;
     border-radius: 15px;
     cursor: pointer;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
 }
 
-.game-controls button:hover {
+.tool-btn:hover,
+.tool-btn.active {
     background: rgba(255,255,255,0.3);
     transform: translateY(-2px);
+    border-color: #FFD700;
 }
 
-.game-controls button:active {
-    transform: translateY(0);
+.block {
+    position: absolute;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    user-select: none;
+}
+
+.block:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(255,255,255,0.5);
+}
+
+.block.breaking {
+    animation: break-block 0.5s ease-out forwards;
+}
+
+@keyframes break-block {
+    0% { transform: scale(1) rotate(0deg); opacity: 1; }
+    50% { transform: scale(1.2) rotate(10deg); opacity: 0.8; }
+    100% { transform: scale(0) rotate(20deg); opacity: 0; }
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: #FFD700;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particle-float 1s ease-out forwards;
+}
+
+@keyframes particle-float {
+    to {
+        transform: translate(var(--tx), var(--ty));
+        opacity: 0;
+    }
 }
 
 footer {
@@ -572,6 +711,15 @@ footer {
         flex-direction: column;
         gap: 10px;
         align-items: center;
+    }
+    
+    .inventory-items {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .item {
+        width: 200px;
     }
 }`;
   };
@@ -742,7 +890,258 @@ footer {
 
   // Generate game JavaScript
   const generateGameJS = (projectName: string) => {
-    return `// Game JavaScript for ${projectName}
+    // Check if it's a block-breaking game
+    const isBlockGame = projectName.toLowerCase().includes('break') || 
+                        projectName.toLowerCase().includes('blocks') ||
+                        projectName.toLowerCase().includes('minecraft') ||
+                        projectName.toLowerCase().includes('mine');
+    
+    if (isBlockGame) {
+      return `// Block Breaking Game JavaScript for ${projectName}
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('${projectName} game loaded!');
+    
+    const gameBoard = document.getElementById('gameBoard');
+    const startBtn = document.getElementById('startBtn');
+    const scoreElement = document.getElementById('score');
+    const blocksElement = document.getElementById('blocks');
+    const levelElement = document.getElementById('level');
+    const toolElement = document.getElementById('tool');
+    const gameMessage = document.getElementById('gameMessage');
+    const toolBtns = document.querySelectorAll('.tool-btn');
+    
+    // Inventory elements
+    const woodCount = document.getElementById('woodCount');
+    const stoneCount = document.getElementById('stoneCount');
+    const ironCount = document.getElementById('ironCount');
+    const goldCount = document.getElementById('goldCount');
+    const diamondCount = document.getElementById('diamondCount');
+    
+    let score = 0;
+    let blocks = 0;
+    let level = 1;
+    let gameActive = false;
+    let currentTool = 'pickaxe';
+    let gameBlocks = [];
+    
+    // Block types with their properties
+    const blockTypes = [
+        { type: 'wood', emoji: '🪵', color: '#8B4513', hardness: 1, points: 10 },
+        { type: 'stone', emoji: '🪨', color: '#808080', hardness: 2, points: 20 },
+        { type: 'iron', emoji: '⚙️', color: '#C0C0C0', hardness: 3, points: 30 },
+        { type: 'gold', emoji: '🪙', color: '#FFD700', hardness: 2, points: 50 },
+        { type: 'diamond', emoji: '💎', color: '#B9F2FF', hardness: 4, points: 100 }
+    ];
+    
+    // Tool effectiveness against block types
+    const toolEffectiveness = {
+        pickaxe: { wood: 3, stone: 2, iron: 1, gold: 2, diamond: 1 },
+        axe: { wood: 3, stone: 1, iron: 1, gold: 1, diamond: 0 },
+        shovel: { wood: 2, stone: 2, iron: 1, gold: 1, diamond: 0 },
+        sword: { wood: 2, stone: 1, iron: 1, gold: 1, diamond: 1 }
+    };
+    
+    // Start game
+    startBtn.addEventListener('click', startGame);
+    
+    // Tool selection
+    toolBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            toolBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentTool = this.getAttribute('data-tool');
+            toolElement.textContent = \`Tool: \${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)}\`;
+        });
+    });
+    
+    function startGame() {
+        console.log('🎮 Starting block breaking game...');
+        gameActive = true;
+        score = 0;
+        blocks = 0;
+        level = 1;
+        updateStats();
+        
+        // Hide start message
+        gameMessage.style.display = 'none';
+        
+        // Create blocks
+        createBlocks();
+        
+        console.log('🎯 Game started! Break the blocks!');
+    }
+    
+    function createBlocks() {
+        // Clear existing blocks
+        gameBlocks.forEach(block => block.element.remove());
+        gameBlocks = [];
+        
+        // Create random blocks
+        const numBlocks = 10 + level * 2;
+        
+        for (let i = 0; i < numBlocks; i++) {
+            const blockType = blockTypes[Math.floor(Math.random() * blockTypes.length)];
+            const block = document.createElement('div');
+            block.className = 'block';
+            block.textContent = blockType.emoji;
+            block.style.cssText = \`
+                width: \${40 + Math.random() * 20}px;
+                height: \${40 + Math.random() * 20}px;
+                background: \${blockType.color};
+                left: \${Math.random() * 80}%;
+                top: \${Math.random() * 80}%;
+                font-size: \${20 + Math.random() * 10}px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            \`;
+            
+            block.addEventListener('click', () => {
+                if (gameActive) {
+                    breakBlock(block, blockType);
+                }
+            });
+            
+            gameBoard.appendChild(block);
+            gameBlocks.push({
+                element: block,
+                type: blockType,
+                hits: 0,
+                maxHits: blockType.hardness
+            });
+        }
+        
+        blocksElement.textContent = \`Blocks: \${numBlocks}\`;
+    }
+    
+    function breakBlock(blockElement, blockType) {
+        const block = gameBlocks.find(b => b.element === blockElement);
+        if (!block) return;
+        
+        const effectiveness = toolEffectiveness[currentTool][blockType.type];
+        block.hits += effectiveness;
+        
+        // Create hit effect
+        createHitEffect(blockElement);
+        
+        if (block.hits >= block.maxHits) {
+            // Block broken
+            score += blockType.points;
+            blocks++;
+            updateInventory(blockType.type);
+            updateStats();
+            
+            // Breaking animation
+            blockElement.classList.add('breaking');
+            
+            // Create particles
+            createParticles(blockElement);
+            
+            setTimeout(() => {
+                blockElement.remove();
+                gameBlocks = gameBlocks.filter(b => b.element !== blockElement);
+                
+                // Check if level complete
+                if (gameBlocks.length === 0) {
+                    levelUp();
+                }
+                
+                // Update blocks count
+                blocksElement.textContent = \`Blocks: \${gameBlocks.length}\`;
+            }, 500);
+        }
+    }
+    
+    function createHitEffect(element) {
+        const effect = document.createElement('div');
+        effect.style.cssText = \`
+            position: absolute;
+            top: \${element.offsetTop}px;
+            left: \${element.offsetLeft}px;
+            width: \${element.offsetWidth}px;
+            height: \${element.offsetHeight}px;
+            border: 2px solid #FFD700;
+            border-radius: 5px;
+            pointer-events: none;
+            animation: hit-effect 0.2s ease-out forwards;
+        \`;
+        gameBoard.appendChild(effect);
+        
+        setTimeout(() => effect.remove(), 200);
+    }
+    
+    function createParticles(element) {
+        for (let i = 0; i < 8; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.cssText = \`
+                left: \${element.offsetLeft + element.offsetWidth / 2}px;
+                top: \${element.offsetTop + element.offsetHeight / 2}px;
+                --tx: \${(Math.random() - 0.5) * 100}px;
+                --ty: \${(Math.random() - 0.5) * 100}px;
+            \`;
+            gameBoard.appendChild(particle);
+            
+            setTimeout(() => particle.remove(), 1000);
+        }
+    }
+    
+    function updateInventory(blockType) {
+        const countElement = document.getElementById(\`\${blockType}Count\`);
+        if (countElement) {
+            const currentCount = parseInt(countElement.textContent);
+            countElement.textContent = currentCount + 1;
+        }
+    }
+    
+    function levelUp() {
+        level++;
+        updateStats();
+        
+        // Show level up message
+        const message = document.createElement('div');
+        message.textContent = \`Level \${level}!\`;
+        message.style.cssText = \`
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            color: #FFD700;
+            font-weight: bold;
+            z-index: 100;
+            animation: level-up 2s ease-out forwards;
+        \`;
+        gameBoard.appendChild(message);
+        
+        setTimeout(() => {
+            message.remove();
+            createBlocks();
+        }, 2000);
+    }
+    
+    function updateStats() {
+        scoreElement.textContent = \`Score: \${score}\`;
+        levelElement.textContent = \`Level: \${level}\`;
+    }
+    
+    // Add CSS animations
+    const style = document.createElement('style');
+    style.textContent = \`
+        @keyframes hit-effect {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+        
+        @keyframes level-up {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+    \`;
+    document.head.appendChild(style);
+});`;
+    } else {
+      // Default game JavaScript
+      return `// Game JavaScript for ${projectName}
 document.addEventListener('DOMContentLoaded', function() {
     console.log('${projectName} game loaded!');
     
@@ -971,6 +1370,7 @@ document.addEventListener('DOMContentLoaded', function() {
     \`;
     document.head.appendChild(style);
 });`;
+    }
   };
 
   // Generate app JavaScript
