@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from 'firebase/auth';
-import { getDatabase, ref, push, set, onValue, off, remove, query, orderByChild, limitToLast, get } from 'firebase/database';
+import { getDatabase, ref, push, set, remove, get } from 'firebase/database';
 
 // Firebase configuration - replace with your config
 const firebaseConfig = {
@@ -69,21 +69,36 @@ export const getCurrentUser = (): User | null => {
 
 // Realtime Database functions
 export const createProject = async (projectData: any) => {
+  console.log('🔥 Starting Firebase project creation:', { name: projectData.name, userId: projectData.userId });
+  
   if (isDemoMode || !database) {
-    console.warn('Demo mode: Project creation not available');
+    console.warn('⚠️ Demo mode: Project creation not available');
     return 'demo-project-id';
   }
   try {
+    console.log('📝 Creating Firebase reference...');
     const projectsRef = ref(database, 'projects');
     const newProjectRef = push(projectsRef);
-    await set(newProjectRef, {
+    console.log('🆔 Generated project key:', newProjectRef.key);
+    
+    const projectToSave = {
       ...projectData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    });
+    };
+    
+    console.log('💾 Saving project to Firebase:', projectToSave);
+    await set(newProjectRef, projectToSave);
+    console.log('✅ Project successfully saved to Firebase');
+    
     return newProjectRef.key;
   } catch (error) {
-    console.error('Error creating project:', error);
+    console.error('❌ Error creating project:', error);
+    console.error('🔍 Error details:', {
+      name: (error as Error).name,
+      message: (error as Error).message,
+      stack: (error as Error).stack
+    });
     throw error;
   }
 };
@@ -152,7 +167,7 @@ export const updateProject = async (projectId: string, projectData: any) => {
     await set(projectRef, {
       ...projectData,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    });
   } catch (error) {
     console.error('Error updating project:', error);
     throw error;
@@ -232,7 +247,7 @@ export const updateUserProfile = async (userId: string, userData: any) => {
     await set(userRef, {
       ...userData,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    });
   } catch (error) {
     console.error('Error updating user profile:', error);
     throw error;
