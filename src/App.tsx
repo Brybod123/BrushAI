@@ -3,7 +3,7 @@ import { User, MousePointer2, ArrowLeft, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './utils/cn';
 import { auth, getCurrentUser, signInWithGoogle, signOutUser, createProject, getProjects, getUserProfile } from './lib/firebase';
-import { generateText, generateImage, chatCompletion, testApiConnection } from './lib/pollinations';
+import { generateText, generateImage, generateWebsiteContent, testApiConnection } from './lib/pollinations';
 
 // Orb Animation Component
 function OrbAnimation({ isActive }: { isActive: boolean }) {
@@ -234,7 +234,7 @@ export function App() {
         
         // Generate HTML project with VFS
         console.log('🏗️ Generating HTML project files...');
-        const files = generateHTMLProject(inputValue, generatedText);
+        const files = await generateHTMLProject(inputValue, generatedText);
         
         // Generate an image for the project
         console.log('🖼️ Generating image...');
@@ -284,9 +284,9 @@ export function App() {
     }
   };
 
-  // Generate HTML project with multiple files
-  const generateHTMLProject = (projectName: string, description: string) => {
-    console.log('🏗️ Generating HTML project with VFS:', projectName);
+  // Generate HTML project with AI content
+  const generateHTMLProject = async (projectName: string, description: string) => {
+    console.log('🏗️ Generating AI-powered website:', projectName);
     
     // Check if user is asking for a game
     const isGame = projectName.toLowerCase().includes('game') || 
@@ -301,27 +301,71 @@ export function App() {
                    projectName.toLowerCase().includes('mine') ||
                    projectName.toLowerCase().includes('block');
     
-    const files: ProjectFile[] = [
-      {
-        name: 'index.html',
-        type: 'html',
-        content: isGame ? generateGameHTML(projectName, description) : generateAppHTML(projectName, description)
-      },
-      {
-        name: 'styles.css',
-        type: 'css',
-        content: isGame ? generateGameCSS() : generateAppCSS()
-      },
-      {
-        name: 'script.js',
-        type: 'js',
-        content: isGame ? generateGameJS(projectName) : generateAppJS(projectName)
-      }
-    ];
-    
-    console.log('📁 Generated', files.length, 'files:', files.map(f => f.name));
-    setProjectFiles(files);
-    return files;
+    try {
+      // Generate website content using AI
+      console.log('🤖 Calling AI to generate website content...');
+      const websiteContent = await generateWebsiteContent(projectName, description, isGame);
+      
+      const files: ProjectFile[] = [
+        {
+          name: 'index.html',
+          type: 'html',
+          content: websiteContent.html
+        },
+        {
+          name: 'styles.css',
+          type: 'css',
+          content: websiteContent.css
+        },
+        {
+          name: 'script.js',
+          type: 'js',
+          content: websiteContent.js
+        }
+      ];
+      
+      console.log('📁 AI-generated', files.length, 'files:', files.map(f => f.name));
+      setProjectFiles(files);
+      return files;
+    } catch (error) {
+      console.error('❌ Error generating AI content:', error);
+      // Return empty files if AI fails
+      const fallbackFiles: ProjectFile[] = [
+        {
+          name: 'index.html',
+          type: 'html',
+          content: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${projectName}</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        h1 { color: #667eea; }
+    </style>
+</head>
+<body>
+    <h1>${projectName}</h1>
+    <p>${description}</p>
+    <p>AI content generation failed. Please try again.</p>
+</body>
+</html>`
+        },
+        {
+          name: 'styles.css',
+          type: 'css',
+          content: `/* Fallback CSS */`
+        },
+        {
+          name: 'script.js',
+          type: 'js',
+          content: `// Fallback JavaScript`
+        }
+      ];
+      setProjectFiles(fallbackFiles);
+      return fallbackFiles;
+    }
   };
 
   // Generate game HTML
