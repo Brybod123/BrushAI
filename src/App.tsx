@@ -1886,26 +1886,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
                             opacity: 0.15,
                           }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Controls Row */}
-                  <div className="flex gap-4 relative z-10">
-                    {currentUser ? (
-                      <>
-                        {/* Sign Out Button */}
-                        <button 
-                          onClick={handleSignOut}
-                          className="flex-1 h-[72px] bg-white/30 backdrop-blur-md rounded-[24px] border border-white/30 flex items-center justify-center hover:bg-white/40 transition-all shadow-sm"
-                        >
-                          <span className="text-white text-sm font-mono">Sign Out</span>
-                        </button>
-                      </>
                     ) : (
-                      <>
-                        {/* Sign In Button */}
+                      <div className="w-full h-full bg-white/20 flex items-center justify-center">
+                        <span className="text-white/50 text-2xl">📄</span>
+                      </div>
                         <button 
                           onClick={handleSignIn}
                           className="flex-1 h-[72px] bg-white/30 backdrop-blur-md rounded-[24px] border border-white/30 flex items-center justify-center hover:bg-white/40 transition-all shadow-sm"
