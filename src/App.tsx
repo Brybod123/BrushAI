@@ -221,7 +221,7 @@ export function App() {
         const generatedText = await generateText(inputValue, {
           model: 'openai',
           temperature: 0.7,
-          system: 'You are a helpful assistant that generates project descriptions and ideas for web applications.',
+          system: 'You are a helpful assistant that generates project descriptions and ideas for web applications, games, and websites. When users ask for games, create engaging game concepts. When users ask for apps, create modern application ideas. Always provide creative and detailed descriptions.',
           stream: true
         }, (chunk: string) => {
           console.log('📥 Streaming chunk received:', chunk);
@@ -288,11 +288,86 @@ export function App() {
   const generateHTMLProject = (projectName: string, description: string) => {
     console.log('🏗️ Generating HTML project with VFS:', projectName);
     
+    // Check if user is asking for a game
+    const isGame = projectName.toLowerCase().includes('game') || 
+                   projectName.toLowerCase().includes('play') ||
+                   projectName.toLowerCase().includes('puzzle') ||
+                   projectName.toLowerCase().includes('quiz') ||
+                   projectName.toLowerCase().includes('racing') ||
+                   projectName.toLowerCase().includes('adventure');
+    
     const files: ProjectFile[] = [
       {
         name: 'index.html',
         type: 'html',
-        content: `<!DOCTYPE html>
+        content: isGame ? generateGameHTML(projectName, description) : generateAppHTML(projectName, description)
+      },
+      {
+        name: 'styles.css',
+        type: 'css',
+        content: isGame ? generateGameCSS() : generateAppCSS()
+      },
+      {
+        name: 'script.js',
+        type: 'js',
+        content: isGame ? generateGameJS(projectName) : generateAppJS(projectName)
+      }
+    ];
+    
+    console.log('📁 Generated', files.length, 'files:', files.map(f => f.name));
+    setProjectFiles(files);
+    return files;
+  };
+
+  // Generate game HTML
+  const generateGameHTML = (projectName: string, description: string) => {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${projectName}</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>${projectName}</h1>
+            <p>${description}</p>
+            <div class="game-stats">
+                <span id="score">Score: 0</span>
+                <span id="level">Level: 1</span>
+                <span id="lives">Lives: 3</span>
+            </div>
+        </header>
+        <main>
+            <div class="game-board" id="gameBoard">
+                <div class="game-message" id="gameMessage">
+                    <h2>Ready to Play?</h2>
+                    <p>Click Start Game to begin!</p>
+                    <button id="startBtn">Start Game</button>
+                </div>
+            </div>
+            <div class="game-controls">
+                <button id="upBtn">↑</button>
+                <button id="leftBtn">←</button>
+                <button id="downBtn">↓</button>
+                <button id="rightBtn">→</button>
+                <button id="actionBtn">Action</button>
+            </div>
+        </main>
+        <footer>
+            <p>🎮 ${projectName} - Created with AI</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>`;
+  };
+
+  // Generate app HTML
+  const generateAppHTML = (projectName: string, description: string) => {
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -305,12 +380,44 @@ export function App() {
         <header>
             <h1>${projectName}</h1>
             <p>${description}</p>
+            <nav class="app-nav">
+                <button class="nav-btn active" data-section="home">Home</button>
+                <button class="nav-btn" data-section="features">Features</button>
+                <button class="nav-btn" data-section="about">About</button>
+                <button class="nav-btn" data-section="contact">Contact</button>
+            </nav>
         </header>
         <main>
-            <section class="content">
+            <section class="content-section active" id="home">
                 <h2>Welcome to ${projectName}</h2>
                 <p>This is a modern web application created with AI assistance.</p>
-                <button id="actionBtn">Click Me!</button>
+                <button id="actionBtn">Get Started</button>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>🚀 Fast Performance</h3>
+                        <p>Optimized for speed and efficiency</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🎨 Beautiful Design</h3>
+                        <p>Modern, responsive interface</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>⚡ Interactive Features</h3>
+                        <p>Dynamic content and animations</p>
+                    </div>
+                </div>
+            </section>
+            <section class="content-section" id="features">
+                <h2>Features</h2>
+                <p>Discover all the amazing features of ${projectName}.</p>
+            </section>
+            <section class="content-section" id="about">
+                <h2>About</h2>
+                <p>Learn more about ${projectName} and our mission.</p>
+            </section>
+            <section class="content-section" id="contact">
+                <h2>Contact</h2>
+                <p>Get in touch with us for any questions.</p>
             </section>
         </main>
         <footer>
@@ -319,12 +426,159 @@ export function App() {
     </div>
     <script src="script.js"></script>
 </body>
-</html>`
-      },
-      {
-        name: 'styles.css',
-        type: 'css',
-        content: `* {
+</html>`;
+  };
+
+  // Generate game CSS
+  const generateGameCSS = () => {
+    return `* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #fff;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.game-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { text-shadow: 2px 2px 4px rgba(0,0,0,0.3), 0 0 10px #fff; }
+    to { text-shadow: 2px 2px 4px rgba(0,0,0,0.3), 0 0 20px #fff, 0 0 30px #fff; }
+}
+
+.game-stats {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-top: 20px;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.game-board {
+    background: rgba(255,255,255,0.1);
+    border: 3px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    height: 400px;
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.game-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+}
+
+.game-message h2 {
+    font-size: 2rem;
+    margin-bottom: 15px;
+}
+
+#startBtn {
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.2rem;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+}
+
+#startBtn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+}
+
+.game-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.game-controls button {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 2px solid rgba(255,255,255,0.3);
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.game-controls button:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-2px);
+}
+
+.game-controls button:active {
+    transform: translateY(0);
+}
+
+footer {
+    text-align: center;
+    margin-top: 30px;
+    opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+    .game-container {
+        padding: 10px;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
+    .game-board {
+        height: 300px;
+    }
+    
+    .game-stats {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+}`;
+  };
+
+  // Generate app CSS
+  const generateAppCSS = () => {
+    return `* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -359,6 +613,31 @@ header h1 {
 header p {
     font-size: 1.2rem;
     opacity: 0.9;
+    margin-bottom: 20px;
+}
+
+.app-nav {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.nav-btn {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 2px solid rgba(255,255,255,0.3);
+    padding: 10px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.nav-btn:hover,
+.nav-btn.active {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-2px);
 }
 
 main {
@@ -369,13 +648,21 @@ main {
     margin-bottom: 40px;
 }
 
-.content h2 {
+.content-section {
+    display: none;
+}
+
+.content-section.active {
+    display: block;
+}
+
+.content-section h2 {
     color: #667eea;
     margin-bottom: 20px;
     font-size: 2rem;
 }
 
-.content p {
+.content-section p {
     margin-bottom: 20px;
     font-size: 1.1rem;
 }
@@ -389,11 +676,38 @@ main {
     border-radius: 25px;
     cursor: pointer;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: 30px;
 }
 
 #actionBtn:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.feature-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.feature-card h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
 }
 
 footer {
@@ -414,23 +728,287 @@ footer {
     main {
         padding: 20px;
     }
-}`
-      },
-      {
-        name: 'script.js',
-        type: 'js',
-        content: `// Interactive JavaScript for ${projectName}
+    
+    .app-nav {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .nav-btn {
+        width: 200px;
+    }
+}`;
+  };
+
+  // Generate game JavaScript
+  const generateGameJS = (projectName: string) => {
+    return `// Game JavaScript for ${projectName}
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('${projectName} game loaded!');
+    
+    const gameBoard = document.getElementById('gameBoard');
+    const startBtn = document.getElementById('startBtn');
+    const scoreElement = document.getElementById('score');
+    const levelElement = document.getElementById('level');
+    const livesElement = document.getElementById('lives');
+    const gameMessage = document.getElementById('gameMessage');
+    
+    let score = 0;
+    let level = 1;
+    let lives = 3;
+    let gameActive = false;
+    let gameElements = [];
+    
+    // Start game
+    startBtn.addEventListener('click', startGame);
+    
+    function startGame() {
+        console.log('🎮 Starting game...');
+        gameActive = true;
+        score = 0;
+        level = 1;
+        lives = 3;
+        updateStats();
+        
+        // Hide start message
+        gameMessage.style.display = 'none';
+        
+        // Create game elements
+        createGameElements();
+        
+        // Start game loop
+        gameLoop();
+        
+        // Add keyboard controls
+        setupKeyboardControls();
+    }
+    
+    function createGameElements() {
+        // Clear existing elements
+        gameElements.forEach(el => el.element.remove());
+        gameElements = [];
+        
+        // Create random game elements
+        for (let i = 0; i < 5; i++) {
+            const element = document.createElement('div');
+            element.className = 'game-element';
+            element.style.cssText = \`
+                position: absolute;
+                width: 50px;
+                height: 50px;
+                background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+                border-radius: 50%;
+                left: \${Math.random() * 80 + 10}%;
+                top: \${Math.random() * 70 + 10}%;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            \`;
+            
+            element.addEventListener('click', () => {
+                if (gameActive) {
+                    collectElement(element);
+                }
+            });
+            
+            gameBoard.appendChild(element);
+            gameElements.push({
+                element,
+                x: parseFloat(element.style.left),
+                y: parseFloat(element.style.top),
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2
+            });
+        }
+    }
+    
+    function collectElement(element) {
+        score += 10;
+        updateStats();
+        
+        // Visual feedback
+        element.style.transform = 'scale(1.5)';
+        element.style.opacity = '0';
+        
+        setTimeout(() => {
+            element.remove();
+            gameElements = gameElements.filter(g => g.element !== element);
+            
+            // Check if level complete
+            if (gameElements.length === 0) {
+                levelUp();
+            }
+        }, 300);
+        
+        // Create particle effect
+        createParticles(element.offsetLeft + 25, element.offsetTop + 25);
+    }
+    
+    function createParticles(x, y) {
+        for (let i = 0; i < 10; i++) {
+            const particle = document.createElement('div');
+            particle.style.cssText = \`
+                position: absolute;
+                width: 5px;
+                height: 5px;
+                background: #fff;
+                border-radius: 50%;
+                left: \${x}px;
+                top: \${y}px;
+                pointer-events: none;
+                animation: particle-float 1s ease-out forwards;
+            \`;
+            gameBoard.appendChild(particle);
+            
+            setTimeout(() => particle.remove(), 1000);
+        }
+    }
+    
+    function levelUp() {
+        level++;
+        updateStats();
+        
+        // Show level up message
+        const message = document.createElement('div');
+        message.textContent = \`Level \${level}!\`;
+        message.style.cssText = \`
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            color: #fff;
+            font-weight: bold;
+            z-index: 100;
+            animation: level-up 2s ease-out forwards;
+        \`;
+        gameBoard.appendChild(message);
+        
+        setTimeout(() => {
+            message.remove();
+            createGameElements();
+        }, 2000);
+    }
+    
+    function gameLoop() {
+        if (!gameActive) return;
+        
+        // Update game elements
+        gameElements.forEach(gameEl => {
+            gameEl.x += gameEl.vx;
+            gameEl.y += gameEl.vy;
+            
+            // Bounce off walls
+            if (gameEl.x <= 0 || gameEl.x >= 85) gameEl.vx *= -1;
+            if (gameEl.y <= 0 || gameEl.y >= 75) gameEl.vy *= -1;
+            
+            gameEl.element.style.left = gameEl.x + '%';
+            gameEl.element.style.top = gameEl.y + '%';
+        });
+        
+        requestAnimationFrame(gameLoop);
+    }
+    
+    function setupKeyboardControls() {
+        document.addEventListener('keydown', (e) => {
+            if (!gameActive) return;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                    movePlayer('up');
+                    break;
+                case 'ArrowDown':
+                case 's':
+                    movePlayer('down');
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                    movePlayer('left');
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                    movePlayer('right');
+                    break;
+                case ' ':
+                    playerAction();
+                    break;
+            }
+        });
+    }
+    
+    function movePlayer(direction) {
+        console.log('Moving player:', direction);
+        // Add player movement logic here
+    }
+    
+    function playerAction() {
+        console.log('Player action!');
+        // Add player action logic here
+    }
+    
+    function updateStats() {
+        scoreElement.textContent = \`Score: \${score}\`;
+        levelElement.textContent = \`Level: \${level}\`;
+        livesElement.textContent = \`Lives: \${lives}\`;
+    }
+    
+    // Add CSS animations
+    const style = document.createElement('style');
+    style.textContent = \`
+        @keyframes particle-float {
+            to {
+                transform: translate(\${Math.random() * 100 - 50}px, \${-Math.random() * 100}px);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes level-up {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+    \`;
+    document.head.appendChild(style);
+});`;
+  };
+
+  // Generate app JavaScript
+  const generateAppJS = (projectName: string) => {
+    return `// Interactive JavaScript for ${projectName}
 document.addEventListener('DOMContentLoaded', function() {
     console.log('${projectName} loaded successfully!');
     
     const actionBtn = document.getElementById('actionBtn');
-    const content = document.querySelector('.content');
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const sections = document.querySelectorAll('.content-section');
     
+    // Navigation
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const targetSection = this.getAttribute('data-section');
+            
+            // Update active states
+            navBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show target section
+            sections.forEach(section => {
+                section.classList.remove('active');
+                if (section.id === targetSection) {
+                    section.classList.add('active');
+                }
+            });
+        });
+    });
+    
+    // Action button functionality
     actionBtn.addEventListener('click', function() {
         // Create a fun animation
         const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
         
+        const content = document.querySelector('.content-section.active');
         content.style.background = \`linear-gradient(45deg, \${randomColor}22, \${randomColor}11)\`;
         content.style.transition = 'background 0.5s ease';
         
@@ -440,6 +1018,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <h3>🎉 Dynamic Content!</h3>
             <p>This content was generated dynamically using JavaScript.</p>
             <p>Timestamp: \${new Date().toLocaleString()}</p>
+            <p>Project: ${projectName}</p>
         \`;
         newElement.style.cssText = \`
             background: white;
@@ -471,13 +1050,40 @@ document.addEventListener('DOMContentLoaded', function() {
             hsl(\${250 + x * 60}, 70%, \${50 + y * 20}%) 0%, 
             hsl(\${280 + x * 60}, 70%, \${40 + y * 20}%) 100%)\`;
     });
-});`
-      }
-    ];
     
-    console.log('📁 Generated', files.length, 'files:', files.map(f => f.name));
-    setProjectFiles(files);
-    return files;
+    // Add smooth scroll behavior
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+    
+    // Add form validation if forms exist
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('Form submitted:', new FormData(this));
+        });
+    });
+    
+    // Add loading states for any buttons
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (!this.classList.contains('nav-btn')) {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 100);
+            }
+        });
+    });
+});`;
   };
 
   // Generate complete HTML with embedded CSS and JS for iframe preview
@@ -543,32 +1149,22 @@ document.addEventListener('DOMContentLoaded', function() {
           }}
         />
         
-        {/* Left Section - Website Placeholder */}
-        <div className="flex-[2.5] relative z-20 flex">
-          <div className="w-full bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl flex items-center justify-center p-12 overflow-hidden relative">
-            <div 
-              className="absolute inset-0 pointer-events-none opacity-10"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-              }}
-            />
-            <h1 className="text-white text-5xl md:text-6xl font-normal tracking-wider text-center max-w-2xl leading-tight">
-              {inputValue || 'A WEBSITE GOES HERE!!!!'}
-            </h1>
-            {generatedImageUrl && (
-              <img 
-                src={generatedImageUrl} 
-                alt="Generated project preview" 
-                className="mt-8 rounded-2xl max-w-full max-h-64 object-cover"
+        {/* Left Section - Live Preview Only */}
+        <div className="flex-1 relative z-20 flex flex-col gap-6">
+          {projectFiles.length > 0 ? (
+            <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-6 overflow-hidden relative">
+              <div 
+                className="absolute inset-0 pointer-events-none opacity-10"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                }}
               />
-            )}
-            {projectFiles.length > 0 && (
-              <div className="mt-8 w-full max-w-4xl">
+              <div className="h-full flex flex-col">
                 <h3 className="text-white text-xl mb-4 text-center">Live Preview</h3>
-                <div className="bg-white/10 backdrop-blur-md rounded-lg p-2">
+                <div className="flex-1 bg-white/10 backdrop-blur-md rounded-lg p-2 min-h-0">
                   <iframe
                     srcDoc={generateCompleteHTML(projectFiles)}
-                    className="w-full h-96 rounded border-0"
+                    className="w-full h-full rounded border-0"
                     title="Project Preview"
                     sandbox="allow-scripts allow-same-origin"
                   />
@@ -578,8 +1174,28 @@ document.addEventListener('DOMContentLoaded', function() {
                   <p className="text-xs mt-1">✨ Full VFS preview with embedded CSS & JavaScript</p>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-10 overflow-hidden relative flex items-center justify-center">
+              <div 
+                className="absolute inset-0 pointer-events-none opacity-10"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                }}
+              />
+              <div className="text-center">
+                <h1 className="text-white text-4xl md:text-5xl font-normal tracking-wider max-w-2xl leading-tight mb-4">
+                  Enter a project idea
+                </h1>
+                <p className="text-white/70 text-lg">
+                  Type any app, game, or website name and press Enter
+                </p>
+                <div className="mt-8 text-white/50 text-sm">
+                  <p>🎮 Games • 📱 Apps • 🌐 Websites • 🎨 Tools</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Section - Sidebar */}
