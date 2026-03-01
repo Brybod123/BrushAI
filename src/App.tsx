@@ -152,31 +152,33 @@ export function App() {
     initializeApp();
 
     // Listen for auth changes
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        try {
-          const profile = await getUserProfile(user.uid);
-          if (profile) {
-            setUserProfile(profile);
+    if (auth) {
+      const unsubscribe = auth.onAuthStateChanged(async (user) => {
+        setCurrentUser(user);
+        if (user) {
+          try {
+            const profile = await getUserProfile(user.uid);
+            if (profile) {
+              setUserProfile(profile);
+            }
+            const userProjects = await getProjects(user.uid);
+            setProjects(userProjects);
+          } catch (error) {
+            console.error('Error loading user data:', error);
           }
-          const userProjects = await getProjects(user.uid);
-          setProjects(userProjects);
-        } catch (error) {
-          console.error('Error loading user data:', error);
+        } else {
+          setUserProfile(null);
+          try {
+            const publicProjects = await getProjects();
+            setProjects(publicProjects);
+          } catch (error) {
+            console.error('Error loading projects:', error);
+          }
         }
-      } else {
-        setUserProfile(null);
-        try {
-          const publicProjects = await getProjects();
-          setProjects(publicProjects);
-        } catch (error) {
-          console.error('Error loading projects:', error);
-        }
-      }
-    });
+      });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    }
   }, []);
 
   // Close profile menu when clicking outside
