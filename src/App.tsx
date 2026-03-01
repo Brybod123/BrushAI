@@ -129,6 +129,9 @@ export function App() {
   const [generatedImageUrl, setGeneratedImageUrl] = useState('');
   const [streamingContent, setStreamingContent] = useState('');
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [messageHistory, setMessageHistory] = useState<Array<{type: 'user' | 'ai' | 'system', content: string, timestamp: Date}>>([]);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Initialize Firebase and load data
@@ -162,6 +165,69 @@ export function App() {
     };
 
     initializeApp();
+
+    // Listen for errors from iframe
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'gameError') {
+        console.error('🚨 Game error detected:', event.data.error);
+        setHasError(true);
+        setErrorMessage(event.data.error.message);
+        
+        // Add to message history
+        setMessageHistory(prev => [...prev, {
+          type: 'system',
+          content: `Error: ${event.data.error.message}`,
+          timestamp: new Date()
+        }]);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+
+  // Handle AI fix for errors
+  const handleAIFix = async () => {
+    if (!errorMessage) return;
+    
+    console.log('🔧 Requesting AI fix for error:', errorMessage);
+    
+    try {
+      const fixResponse = await generateText(`Fix this JavaScript error in the game: ${errorMessage}`, {
+        model: 'openai',
+        temperature: 0.3,
+        system: 'You are a JavaScript debugging expert. Analyze the error and provide a complete fix. Return only the corrected JavaScript code, no explanations.',
+        stream: false
+      });
+      
+      // Add to message history
+      setMessageHistory(prev => [...prev, {
+        type: 'system',
+        content: `AI Fix Request: ${errorMessage}`,
+        timestamp: new Date()
+      }]);
+      
+      setMessageHistory(prev => [...prev, {
+        type: 'ai',
+        content: `AI Fix Applied: ${fixResponse}`,
+        timestamp: new Date()
+      }]);
+      
+      // Apply the fix by regenerating the project
+      if (inputValue) {
+        const files = await generateHTMLProject(inputValue, generatedContent);
+        setProjectFiles(files);
+        setHasError(false);
+        setErrorMessage('');
+      }
+    } catch (error) {
+      console.error('❌ Error getting AI fix:', error);
+      setMessageHistory(prev => [...prev, {
+        type: 'system',
+        content: `AI Fix Failed: ${error}`,
+        timestamp: new Date()
+      }]);
+    }
+  };
 
     // Listen for auth changes
     if (auth) {
@@ -1540,22 +1606,46 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let completeHTML = htmlFile.content;
     
-    // Embed CSS if available
+    // Embed CSS
     if (cssFile) {
-      const cssContent = cssFile.content.replace(/`/g, '\\`');
-      completeHTML = completeHTML.replace(
-        '</head>',
-        `    <style>\n${cssContent}\n    </style>\n  </head>`
-      );
+      const cssContent = `<style>\n${cssFile.content}\n</style>`;
+      completeHTML = completeHTML.replace('</head>', `${cssContent}\n</head>`);
     }
     
-    // Embed JS if available
+    // Embed JavaScript with error detection
     if (jsFile) {
-      const jsContent = jsFile.content.replace(/`/g, '\\`');
-      completeHTML = completeHTML.replace(
-        '<script src="script.js"></script>',
-        `    <script>\n${jsContent}\n    </script>`
-      );
+      const jsWithErrorDetection = `
+        <script>
+          // Error detection and reporting
+          window.addEventListener('error', function(e) {
+            console.error('Game Error:', e.error);
+            window.parent.postMessage({
+              type: 'gameError',
+              error: {
+                message: e.error.message,
+                filename: e.filename,
+                lineno: e.lineno,
+                colno: e.colno,
+                stack: e.error.stack
+              }
+            }, '*');
+          });
+          
+          window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled Promise Rejection:', e.reason);
+            window.parent.postMessage({
+              type: 'gameError', 
+              error: {
+                message: e.reason.toString(),
+                type: 'unhandledrejection'
+              }
+            }, '*');
+          });
+          
+          // Original game code
+          ${jsFile.content}
+        </script>`;
+      completeHTML = completeHTML.replace('</body>', `${jsWithErrorDetection}\n</body>`);
     }
     
     return completeHTML;
@@ -1719,6 +1809,16 @@ document.addEventListener('DOMContentLoaded', function() {
               placeholder="What would you like to create?"
               className="w-[300px] px-5 py-4 bg-white/10 backdrop-blur-xl rounded-[24px] text-white placeholder-white/70 text-sm outline-none border border-white/20 focus:border-white/40 focus:bg-white/15 transition-all shadow-xl"
             />
+            {/* AI Fix Button */}
+            {hasError && (
+              <button
+                onClick={handleAIFix}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg"
+                title="Fix Error with AI"
+              >
+                🔧 Fix
+              </button>
+            )}
             {/* Input specific grain/noise overlay */}
             <div 
               className="absolute inset-0 pointer-events-none rounded-[24px]"
