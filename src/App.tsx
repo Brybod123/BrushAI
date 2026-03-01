@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './utils/cn';
 import { auth, getCurrentUser, signInWithGoogle, signOutUser, createProject, getProjects, getUserProfile } from './lib/firebase';
 import { generateText, generateImage, generateWebsiteContent, testApiConnection } from './lib/pollinations';
+import CodeMirror from '@uiw/react-codemirror';
+import { html as htmlLang } from '@codemirror/lang-html';
 
 // Orb Animation Component
 function OrbAnimation({ isActive }: { isActive: boolean }) {
@@ -133,6 +135,9 @@ export function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [messageHistory, setMessageHistory] = useState<Array<{ type: 'user' | 'ai' | 'system', content: string, timestamp: Date }>>([]);
   const [isDraft, setIsDraft] = useState(false);
+  const [editInputValue, setEditInputValue] = useState('');
+  const [selectedElement, setSelectedElement] = useState<any>(null);
+  const [isSelectingElement, setIsSelectingElement] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Initialize Firebase and load data
@@ -180,6 +185,13 @@ export function App() {
           content: `Error: ${event.data.error.message}`,
           timestamp: new Date()
         }]);
+      } else if (event.data.type === 'elementSelected') {
+        console.log('🎯 Element selected in iframe:', event.data.element);
+        setSelectedElement(event.data.element);
+        setIsSelectingElement(false);
+        // Focus the input to allow user to type their change request
+        const input = document.getElementById('editInput') as HTMLInputElement;
+        if (input) input.focus();
       }
     };
 
@@ -303,6 +315,10 @@ export function App() {
         console.log('🏗️ Generating HTML project files...');
         const files = await generateHTMLProject(inputValue, generatedText);
 
+        // Immediately show the Project Maker
+        setShowExampleUi(true);
+        setShowOrbAnimation(false);
+
         // Generate an image for the project
         console.log('🖼️ Generating image...');
         const imageUrl = generateImage(inputValue, {
@@ -318,7 +334,7 @@ export function App() {
         // If user is logged in, create a project
         if (currentUser) {
           console.log('💾 Creating project in database...');
-          const projectId = await createProject({
+          await createProject({
             name: inputValue,
             author: userProfile?.username || currentUser.displayName || 'Anonymous',
             description: generatedText,
@@ -327,12 +343,9 @@ export function App() {
             files
           });
 
-          console.log('✅ Project created with ID:', projectId);
-
           // Refresh projects list
           const updatedProjects = await getProjects(currentUser.uid);
           setProjects(updatedProjects);
-          console.log('🔄 Projects list refreshed');
         }
 
       } catch (error) {
@@ -340,13 +353,6 @@ export function App() {
         setGeneratedContent('Failed to generate content. Please try again.');
       } finally {
         setLoading(false);
-        console.log('🏁 AI generation process finished');
-        // After ~4 seconds (a couple of animation rounds), show the example UI
-        setTimeout(() => {
-          setShowOrbAnimation(false);
-          setShowExampleUi(true);
-          console.log('🎨 Showing example UI');
-        }, 4000);
       }
     }
   };
@@ -1598,7 +1604,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // Generate complete HTML with embedded CSS and JS for iframe preview
-  const generateCompleteHTML = (files: ProjectFile[]) => {
+  const generateCompleteHTML = (files: ProjectFile[], isSelecting: boolean) => {
     const htmlFile = files.find(f => f.name === 'index.html');
     const cssFile = files.find(f => f.name === 'styles.css');
     const jsFile = files.find(f => f.name === 'script.js');
@@ -1613,40 +1619,58 @@ document.addEventListener('DOMContentLoaded', function() {
       completeHTML = completeHTML.replace('</head>', `${cssContent}\n</head>`);
     }
 
-    // Embed JavaScript with error detection
-    if (jsFile) {
-      const jsWithErrorDetection = `
-        <script>
-          // Error detection and reporting
+    // Embed JavaScript with error detection and selection
+    const scripts = `
+      <script>
+        (function() {
+          // Error detection
           window.addEventListener('error', function(e) {
-            console.error('Game Error:', e.error);
             window.parent.postMessage({
               type: 'gameError',
-              error: {
-                message: e.error.message,
-                filename: e.filename,
-                lineno: e.lineno,
-                colno: e.colno,
-                stack: e.error.stack
-              }
+              error: { message: e.error.message }
             }, '*');
           });
-          
-          window.addEventListener('unhandledrejection', function(e) {
-            console.error('Unhandled Promise Rejection:', e.reason);
-            window.parent.postMessage({
-              type: 'gameError', 
-              error: {
-                message: e.reason.toString(),
-                type: 'unhandledrejection'
-              }
-            }, '*');
-          });
-          
-          // Original game code
-          ${jsFile.content}
-        </script>`;
-      completeHTML = completeHTML.replace('</body>', `${jsWithErrorDetection}\n</body>`);
+
+          // Element Selection Logic
+          let selectionActive = ${isSelecting};
+          if (selectionActive) {
+            document.body.style.cursor = 'crosshair';
+            const style = document.createElement('style');
+            style.innerHTML = \`
+              .ai-hover-select { outline: 2px solid #3b82f6 !important; outline-offset: -2px !important; }
+            \`;
+            document.head.appendChild(style);
+
+            document.addEventListener('mouseover', e => {
+              if (!selectionActive) return;
+              e.target.classList.add('ai-hover-select');
+            }, true);
+            document.addEventListener('mouseout', e => {
+              e.target.classList.remove('ai-hover-select');
+            }, true);
+            document.addEventListener('click', e => {
+              if (!selectionActive) return;
+              e.preventDefault();
+              e.stopPropagation();
+              const el = e.target;
+              window.parent.postMessage({
+                type: 'elementSelected',
+                element: {
+                  tag: el.tagName.toLowerCase(),
+                  className: el.className.replace('ai-hover-select', '').trim(),
+                  innerText: el.innerText.substring(0, 30)
+                }
+              }, '*');
+            }, true);
+          }
+        })();
+        ${jsFile ? jsFile.content : ''}
+      </script>`;
+
+    if (completeHTML.includes('</body>')) {
+      completeHTML = completeHTML.replace('</body>', `${scripts}\n</body>`);
+    } else {
+      completeHTML += scripts;
     }
 
     return completeHTML;
@@ -1672,104 +1696,148 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  if (showExampleUi) {
-    return (
-      <div className="min-h-screen bg-[#808080] relative overflow-hidden font-mono p-6 flex gap-6 h-screen">
-        {/* Global Noise Texture Overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none z-10"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-            opacity: 0.08,
-          }}
-        />
+  const handleEditKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && editInputValue.trim()) {
+      const prompt = selectedElement
+        ? `In the code, find the ${selectedElement.tag} element with classes "${selectedElement.className}" and text "${selectedElement.innerText}" and apply these changes: ${editInputValue}`
+        : editInputValue;
 
-        {/* Left Section - Live Preview Only */}
-        <div className="flex-1 relative z-20 flex flex-col gap-6">
-          {projectFiles.length > 0 ? (
-            <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-6 overflow-hidden relative">
-              <div
-                className="absolute inset-0 pointer-events-none opacity-10"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                }}
-              />
-              <div className="h-full flex flex-col">
-                <h3 className="text-white text-xl mb-4 text-center">Live Preview</h3>
-                <div className="flex-1 bg-white/10 backdrop-blur-md rounded-lg p-2 min-h-0">
-                  <iframe
-                    srcDoc={generateCompleteHTML(projectFiles)}
-                    className="w-full h-full rounded border-0"
-                    title="Project Preview"
-                    sandbox="allow-scripts allow-same-origin"
-                  />
-                </div>
-                <div className="mt-4 text-white/70 text-sm text-center">
-                  <p>📁 Generated Files: {projectFiles.map(f => f.name).join(', ')}</p>
-                  <p className="text-xs mt-1">✨ Full VFS preview with embedded CSS & JavaScript</p>
-                </div>
+      console.log('🚀 Sending edit request to AI:', prompt);
+      setShowOrbAnimation(true);
+      setLoading(true);
+
+      try {
+        const currentHtml = projectFiles.find(f => f.name === 'index.html')?.content || '';
+        const currentCss = projectFiles.find(f => f.name === 'styles.css')?.content || '';
+        const currentJs = projectFiles.find(f => f.name === 'script.js')?.content || '';
+
+        const systemPrompt = `You are a code editing expert. You will receive existing HTML, CSS, and JS, and a change request. 
+        Apply the changes and return the complete updated files in JSON format: { "html": "...", "css": "...", "js": "..." }. 
+        Existing HTML: ${currentHtml}
+        Existing CSS: ${currentCss}
+        Existing JS: ${currentJs}`;
+
+        const editResponse = await generateText(prompt, {
+          model: 'openai',
+          temperature: 0.3,
+          system: systemPrompt,
+          stream: false
+        });
+
+        const jsonMatch = editResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const updated = JSON.parse(jsonMatch[0]);
+          setProjectFiles([
+            { name: 'index.html', type: 'html', content: updated.html || currentHtml },
+            { name: 'styles.css', type: 'css', content: updated.css || currentCss },
+            { name: 'script.js', type: 'js', content: updated.js || currentJs }
+          ]);
+        }
+      } catch (err) {
+        console.error('Error in AI edit process:', err);
+      } finally {
+        setLoading(false);
+        setEditInputValue('');
+        setSelectedElement(null);
+        setTimeout(() => setShowOrbAnimation(false), 1500);
+      }
+    }
+  };
+
+  if (showExampleUi) {
+    const htmlFile = projectFiles.find(f => f.name === 'index.html');
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] p-4 flex flex-col gap-4 h-screen font-mono relative overflow-hidden">
+        {/* Grain Overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-5 mix-blend-overlay bg-noise z-10" />
+
+        {/* Header */}
+        <div className="relative z-20 flex items-center justify-between px-6 py-3 bg-white/5 backdrop-blur-xl rounded-[24px] border border-white/10 shadow-2xl">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setShowExampleUi(false)} className="text-white/40 hover:text-white transition-colors">
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <div className="h-6 w-px bg-white/10 mx-2" />
+            <h2 className="text-white text-sm tracking-widest uppercase opacity-70">Project Maker</h2>
+          </div>
+          <div className="flex gap-4">
+            {selectedElement && (
+              <div className="bg-blue-500/10 border border-blue-500/30 px-4 py-1.5 rounded-full text-blue-400 text-[10px] flex items-center gap-2">
+                <span className="opacity-50 tracking-widest">SELECTED</span>
+                <span className="font-bold text-blue-300">&lt;{selectedElement.tag}&gt;</span>
+                <button onClick={() => setSelectedElement(null)} className="hover:text-blue-200">✕</button>
               </div>
-            </div>
-          ) : (
-            <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-10 overflow-hidden relative flex items-center justify-center">
-              <div
-                className="absolute inset-0 pointer-events-none opacity-10"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                }}
-              />
-              <div className="text-center">
-                <h1 className="text-white text-4xl md:text-5xl font-normal tracking-wider max-w-2xl leading-tight mb-4">
-                  Enter a project idea
-                </h1>
-                <p className="text-white/70 text-lg">
-                  Type any app, game, or website name and press Enter
-                </p>
-                <div className="mt-8 text-white/50 text-sm">
-                  <p>🎮 Games • 📱 Apps • 🌐 Websites • 🎨 Tools</p>
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => setIsSelectingElement(!isSelectingElement)}
+              className={cn(
+                "flex items-center gap-2 px-6 py-2 rounded-full border transition-all text-xs tracking-widest uppercase",
+                isSelectingElement ? "bg-blue-600 border-blue-400 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]" : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white"
+              )}
+            >
+              <MousePointer2 className="w-3.5 h-3.5" />
+              <span>{isSelectingElement ? 'Pick Element' : 'Select Element'}</span>
+            </button>
+          </div>
         </div>
 
-        {/* Right Section - Sidebar (smaller) */}
-        <div className="w-96 relative z-20 flex flex-col gap-6">
-          {/* Top Info Card */}
-          <div className="flex-[4] bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-10 overflow-hidden relative">
-            <div
-              className="absolute inset-0 pointer-events-none opacity-10"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-              }}
-            />
-            <p className="text-white text-lg leading-relaxed font-mono opacity-90">
-              {(streamingContent || generatedContent) || 'Some html jarble example goes here... blah blah blah'}
-            </p>
-          </div>
-
-          {/* Bottom Input Field Container */}
-          <div className="flex-none bg-white/5 backdrop-blur-xl rounded-[40px] border border-white/10 shadow-2xl p-2 relative overflow-hidden">
-            <div className="bg-white/10 rounded-[32px] overflow-hidden relative flex items-center gap-2 px-3">
-              <input
-                type="text"
-                placeholder="Any Changes?"
-                className="flex-1 px-4 py-5 bg-transparent text-white placeholder-white/50 outline-none font-mono text-lg"
-              />
-              <button
-                className="flex items-center gap-2 px-4 py-3 bg-white/20 rounded-[24px] border border-white/30 hover:bg-white/30 transition-all group"
-                onClick={() => alert('Element selection mode activated! Click on any element on the page to select it for specific questions.')}
-              >
-                <MousePointer2 className="w-5 h-5 text-white/80 group-hover:text-white transition-colors" />
-                <span className="text-white/70 text-sm font-mono">Select Element</span>
-              </button>
-              <div
-                className="absolute inset-0 pointer-events-none opacity-5"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                }}
+        {/* Editor & Preview Row */}
+        <div className="relative z-20 flex-1 flex gap-4 min-h-0">
+          {/* Editor Container */}
+          <div className="flex-1 bg-[#121212] rounded-[32px] border border-white/5 shadow-2xl overflow-hidden flex flex-col group transition-all hover:border-white/10">
+            <div className="px-6 py-3 bg-white/[0.02] border-b border-white/5 flex justify-between items-center">
+              <span className="text-white/20 text-[9px] tracking-[0.2em] font-bold uppercase">index.html</span>
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/5" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/5" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/5" />
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto custom-scrollbar">
+              <CodeMirror
+                value={htmlFile?.content || ''}
+                height="100%"
+                theme="dark"
+                extensions={[htmlLang()]}
+                onChange={(val) => setProjectFiles(prev => prev.map(f => f.name === 'index.html' ? { ...f, content: val } : f))}
+                className="text-sm"
               />
             </div>
+          </div>
+
+          {/* Preview Container */}
+          <div className="flex-1 bg-white rounded-[32px] overflow-hidden flex flex-col shadow-[0_60px_100_px_-20px_rgba(0,0,0,0.5)] border border-white/10">
+            <div className="px-6 py-3 bg-gray-50/80 backdrop-blur-sm border-b border-black/[0.03] flex justify-between items-center">
+              <span className="text-black/20 text-[9px] tracking-[0.2em] font-bold uppercase">Live Preview</span>
+              <div className="flex gap-1">
+                <div className="w-2 h-2 rounded-full bg-red-400/20" />
+                <div className="w-2 h-2 rounded-full bg-yellow-400/20" />
+                <div className="w-2 h-2 rounded-full bg-green-400/20" />
+              </div>
+            </div>
+            <div className="flex-1 relative">
+              <iframe
+                srcDoc={generateCompleteHTML(projectFiles, isSelectingElement)}
+                className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Changes Input Container */}
+        <div className="relative z-20 bg-white/[0.02] backdrop-blur-2xl rounded-[32px] border border-white/10 p-2 shadow-2xl transition-all hover:border-white/20">
+          <div className="bg-white/5 rounded-[24px] flex items-center gap-3 pr-6">
+            <input
+              id="editInput"
+              type="text"
+              value={editInputValue}
+              onChange={(e) => setEditInputValue(e.target.value)}
+              onKeyDown={handleEditKeyDown}
+              placeholder={selectedElement ? "What change to apply to this element?" : "Describe changes to apply..."}
+              className="flex-1 px-8 py-5 bg-transparent text-white text-lg outline-none placeholder:text-white/10 font-mono tracking-tight"
+            />
+            {loading && <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />}
           </div>
         </div>
       </div>
@@ -1891,8 +1959,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                   </div>
 
-                  {/* Sign In / Sign Out */}
-                  {!currentUser && (
+                  {currentUser ? (
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full h-[48px] bg-white/10 backdrop-blur-md rounded-[24px] border border-white/10 flex items-center justify-center hover:bg-white/20 transition-all relative z-10"
+                    >
+                      <span className="text-white text-sm font-mono opacity-60">Sign Out</span>
+                    </button>
+                  ) : (
                     <button
                       onClick={handleSignIn}
                       className="w-full h-[48px] bg-white/20 backdrop-blur-md rounded-[24px] border border-white/30 flex items-center justify-center hover:bg-white/30 transition-all shadow-sm relative z-10"
@@ -2029,9 +2103,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     key={i}
                     className="aspect-[4/5] bg-white/20 backdrop-blur-md rounded-[32px] border border-white/30 relative overflow-hidden group shadow-xl hover:scale-[1.02] transition-transform cursor-pointer"
                     onClick={() => setViewingProject({
+                      id: `feed-${i}`,
                       name: `Project ${i}`,
                       author: "Brybod123",
-                      description: "A creative project showcasing modern design principles and interactive elements."
+                      description: "A creative project showcasing modern design principles and interactive elements.",
+                      userId: 'feed',
+                      createdAt: new Date()
                     })}
                   >
                     <div className="absolute inset-0 bg-noise opacity-60 mix-blend-overlay" />
