@@ -89,6 +89,12 @@ function OrbAnimation({ isActive }: { isActive: boolean }) {
   );
 }
 
+interface ProjectFile {
+  name: string;
+  content: string;
+  type: 'html' | 'css' | 'js' | 'json';
+}
+
 interface Project {
   id: string;
   name: string;
@@ -97,6 +103,7 @@ interface Project {
   userId: string;
   imageUrl?: string;
   createdAt: Date;
+  files?: ProjectFile[];
 }
 
 interface UserProfile {
@@ -121,6 +128,7 @@ export function App() {
   const [generatedContent, setGeneratedContent] = useState('');
   const [generatedImageUrl, setGeneratedImageUrl] = useState('');
   const [streamingContent, setStreamingContent] = useState('');
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Initialize Firebase and load data
@@ -204,6 +212,7 @@ export function App() {
       setLoading(true);
       setStreamingContent('');
       setGeneratedContent('');
+      setProjectFiles([]);
       
       try {
         console.log('🤖 Starting AI generation process...');
@@ -212,7 +221,7 @@ export function App() {
         const generatedText = await generateText(inputValue, {
           model: 'openai',
           temperature: 0.7,
-          system: 'You are a helpful assistant that generates project descriptions and ideas.',
+          system: 'You are a helpful assistant that generates project descriptions and ideas for web applications.',
           stream: true
         }, (chunk: string) => {
           console.log('📥 Streaming chunk received:', chunk);
@@ -222,6 +231,10 @@ export function App() {
         console.log('✅ Text generation completed');
         setGeneratedContent(generatedText);
         setStreamingContent('');
+        
+        // Generate HTML project with VFS
+        console.log('🏗️ Generating HTML project files...');
+        const files = generateHTMLProject(inputValue, generatedText);
         
         // Generate an image for the project
         console.log('🖼️ Generating image...');
@@ -243,7 +256,8 @@ export function App() {
             author: userProfile?.username || currentUser.displayName || 'Anonymous',
             description: generatedText,
             userId: currentUser.uid,
-            imageUrl
+            imageUrl,
+            files
           });
           
           console.log('✅ Project created with ID:', projectId);
@@ -268,6 +282,202 @@ export function App() {
         }, 4000);
       }
     }
+  };
+
+  // Generate HTML project with multiple files
+  const generateHTMLProject = (projectName: string, description: string) => {
+    console.log('🏗️ Generating HTML project with VFS:', projectName);
+    
+    const files: ProjectFile[] = [
+      {
+        name: 'index.html',
+        type: 'html',
+        content: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${projectName}</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>${projectName}</h1>
+            <p>${description}</p>
+        </header>
+        <main>
+            <section class="content">
+                <h2>Welcome to ${projectName}</h2>
+                <p>This is a modern web application created with AI assistance.</p>
+                <button id="actionBtn">Click Me!</button>
+            </section>
+        </main>
+        <footer>
+            <p>&copy; 2024 ${projectName}. All rights reserved.</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>`
+      },
+      {
+        name: 'styles.css',
+        type: 'css',
+        content: `* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+    color: white;
+}
+
+header h1 {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+header p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+main {
+    background: white;
+    border-radius: 15px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    margin-bottom: 40px;
+}
+
+.content h2 {
+    color: #667eea;
+    margin-bottom: 20px;
+    font-size: 2rem;
+}
+
+.content p {
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+}
+
+#actionBtn {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.1rem;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#actionBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+footer {
+    text-align: center;
+    color: white;
+    opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
+    main {
+        padding: 20px;
+    }
+}`
+      },
+      {
+        name: 'script.js',
+        type: 'js',
+        content: `// Interactive JavaScript for ${projectName}
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('${projectName} loaded successfully!');
+    
+    const actionBtn = document.getElementById('actionBtn');
+    const content = document.querySelector('.content');
+    
+    actionBtn.addEventListener('click', function() {
+        // Create a fun animation
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        
+        content.style.background = \`linear-gradient(45deg, \${randomColor}22, \${randomColor}11)\`;
+        content.style.transition = 'background 0.5s ease';
+        
+        // Add a new element
+        const newElement = document.createElement('div');
+        newElement.innerHTML = \`
+            <h3>🎉 Dynamic Content!</h3>
+            <p>This content was generated dynamically using JavaScript.</p>
+            <p>Timestamp: \${new Date().toLocaleString()}</p>
+        \`;
+        newElement.style.cssText = \`
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        \`;
+        
+        content.appendChild(newElement);
+        
+        // Scroll to the new element
+        newElement.scrollIntoView({ behavior: 'smooth' });
+        
+        // Remove the element after 5 seconds
+        setTimeout(() => {
+            newElement.style.opacity = '0';
+            newElement.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => newElement.remove(), 500);
+        }, 5000);
+    });
+    
+    // Add some interactive features
+    document.addEventListener('mousemove', function(e) {
+        const x = e.clientX / window.innerWidth;
+        const y = e.clientY / window.innerHeight;
+        
+        document.body.style.background = \`linear-gradient(\${135 + x * 45}deg, 
+            hsl(\${250 + x * 60}, 70%, \${50 + y * 20}%) 0%, 
+            hsl(\${280 + x * 60}, 70%, \${40 + y * 20}%) 100%)\`;
+    });
+});`
+      }
+    ];
+    
+    console.log('📁 Generated', files.length, 'files:', files.map(f => f.name));
+    setProjectFiles(files);
+    return files;
   };
 
   const handleSignIn = async () => {
@@ -320,6 +530,22 @@ export function App() {
                 alt="Generated project preview" 
                 className="mt-8 rounded-2xl max-w-full max-h-64 object-cover"
               />
+            )}
+            {projectFiles.length > 0 && (
+              <div className="mt-8 w-full max-w-4xl">
+                <h3 className="text-white text-xl mb-4 text-center">Live Preview</h3>
+                <div className="bg-white/10 backdrop-blur-md rounded-lg p-2">
+                  <iframe
+                    srcDoc={projectFiles.find(f => f.name === 'index.html')?.content || ''}
+                    className="w-full h-96 rounded border-0"
+                    title="Project Preview"
+                    sandbox="allow-scripts"
+                  />
+                </div>
+                <div className="mt-4 text-white/70 text-sm text-center">
+                  <p>📁 Generated Files: {projectFiles.map(f => f.name).join(', ')}</p>
+                </div>
+              </div>
             )}
           </div>
         </div>
