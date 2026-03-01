@@ -480,6 +480,37 @@ document.addEventListener('DOMContentLoaded', function() {
     return files;
   };
 
+  // Generate complete HTML with embedded CSS and JS for iframe preview
+  const generateCompleteHTML = (files: ProjectFile[]) => {
+    const htmlFile = files.find(f => f.name === 'index.html');
+    const cssFile = files.find(f => f.name === 'styles.css');
+    const jsFile = files.find(f => f.name === 'script.js');
+    
+    if (!htmlFile) return '';
+    
+    let completeHTML = htmlFile.content;
+    
+    // Embed CSS if available
+    if (cssFile) {
+      const cssContent = cssFile.content.replace(/`/g, '\\`');
+      completeHTML = completeHTML.replace(
+        '</head>',
+        `    <style>\n${cssContent}\n    </style>\n  </head>`
+      );
+    }
+    
+    // Embed JS if available
+    if (jsFile) {
+      const jsContent = jsFile.content.replace(/`/g, '\\`');
+      completeHTML = completeHTML.replace(
+        '<script src="script.js"></script>',
+        `    <script>\n${jsContent}\n    </script>`
+      );
+    }
+    
+    return completeHTML;
+  };
+
   const handleSignIn = async () => {
     try {
       const user = await signInWithGoogle();
@@ -536,14 +567,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h3 className="text-white text-xl mb-4 text-center">Live Preview</h3>
                 <div className="bg-white/10 backdrop-blur-md rounded-lg p-2">
                   <iframe
-                    srcDoc={projectFiles.find(f => f.name === 'index.html')?.content || ''}
+                    srcDoc={generateCompleteHTML(projectFiles)}
                     className="w-full h-96 rounded border-0"
                     title="Project Preview"
-                    sandbox="allow-scripts"
+                    sandbox="allow-scripts allow-same-origin"
                   />
                 </div>
                 <div className="mt-4 text-white/70 text-sm text-center">
                   <p>📁 Generated Files: {projectFiles.map(f => f.name).join(', ')}</p>
+                  <p className="text-xs mt-1">✨ Full VFS preview with embedded CSS & JavaScript</p>
                 </div>
               </div>
             )}
