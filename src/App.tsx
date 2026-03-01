@@ -120,6 +120,7 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
   const [generatedImageUrl, setGeneratedImageUrl] = useState('');
+  const [streamingContent, setStreamingContent] = useState('');
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Initialize Firebase and load data
@@ -195,23 +196,35 @@ export function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle Enter key press with AI generation
+  // Handle Enter key press with AI generation and streaming
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputValue.trim()) {
+      console.log('🎯 User input received:', inputValue);
       setShowOrbAnimation(true);
       setLoading(true);
+      setStreamingContent('');
+      setGeneratedContent('');
       
       try {
-        // Generate content using Pollinations API
+        console.log('🤖 Starting AI generation process...');
+        
+        // Generate content using Pollinations API with streaming
         const generatedText = await generateText(inputValue, {
           model: 'openai',
           temperature: 0.7,
-          system: 'You are a helpful assistant that generates project descriptions and ideas.'
+          system: 'You are a helpful assistant that generates project descriptions and ideas.',
+          stream: true
+        }, (chunk: string) => {
+          console.log('📥 Streaming chunk received:', chunk);
+          setStreamingContent(prev => prev + chunk);
         });
         
+        console.log('✅ Text generation completed');
         setGeneratedContent(generatedText);
+        setStreamingContent('');
         
         // Generate an image for the project
+        console.log('🖼️ Generating image...');
         const imageUrl = generateImage(inputValue, {
           model: 'flux',
           width: 1024,
@@ -219,10 +232,12 @@ export function App() {
           enhance: true
         });
         
+        console.log('🖼️ Image URL generated:', imageUrl);
         setGeneratedImageUrl(imageUrl);
         
         // If user is logged in, create a project
         if (currentUser) {
+          console.log('💾 Creating project in database...');
           const projectId = await createProject({
             name: inputValue,
             author: userProfile?.username || currentUser.displayName || 'Anonymous',
@@ -231,20 +246,25 @@ export function App() {
             imageUrl
           });
           
+          console.log('✅ Project created with ID:', projectId);
+          
           // Refresh projects list
           const updatedProjects = await getProjects(currentUser.uid);
           setProjects(updatedProjects);
+          console.log('🔄 Projects list refreshed');
         }
         
       } catch (error) {
-        console.error('Error generating content:', error);
+        console.error('❌ Error in AI generation process:', error);
         setGeneratedContent('Failed to generate content. Please try again.');
       } finally {
         setLoading(false);
+        console.log('🏁 AI generation process finished');
         // After ~4 seconds (a couple of animation rounds), show the example UI
         setTimeout(() => {
           setShowOrbAnimation(false);
           setShowExampleUi(true);
+          console.log('🎨 Showing example UI');
         }, 4000);
       }
     }
@@ -315,7 +335,7 @@ export function App() {
               }}
             />
             <p className="text-white text-lg leading-relaxed font-mono opacity-90">
-              {generatedContent || 'Some html jarble example goes here... blah blah blah'}
+              {(streamingContent || generatedContent) || 'Some html jarble example goes here... blah blah blah'}
             </p>
           </div>
 

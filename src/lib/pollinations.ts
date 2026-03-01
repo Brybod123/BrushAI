@@ -57,9 +57,11 @@ export const testApiConnection = async () => {
   }
 };
 
-// Text generation - simplified
-export const generateText = async (prompt: string, options: TextGenerationOptions = {}) => {
+// Text generation with streaming support
+export const generateText = async (prompt: string, options: TextGenerationOptions = {}, onStream?: (chunk: string) => void) => {
   try {
+    console.log('🚀 Starting Pollinations text generation:', { prompt: prompt.substring(0, 50) + '...', model: options.model || 'openai' });
+    
     const response = await fetch(`${POLLINATIONS_BASE_URL}/v1/chat/completions`, {
       method: 'POST',
       headers: {
@@ -77,22 +79,76 @@ export const generateText = async (prompt: string, options: TextGenerationOption
         temperature: options.temperature || 0.7,
         seed: options.seed || 0,
         ...(options.json && { response_format: { type: 'json_object' } }),
-        ...(options.stream !== undefined && { stream: options.stream })
+        stream: options.stream || false
       })
     });
 
+    console.log('📡 Pollinations API response status:', response.status, response.statusText);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Pollinations API error:', response.status, errorText);
+      console.error('❌ Pollinations API error:', response.status, errorText);
       throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json();
-    return result.choices?.[0]?.message?.content || result.content || result;
+    if (options.stream && onStream) {
+      console.log('🌊 Starting streaming response...');
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                  console.log('✅ Streaming completed');
+                  break;
+                }
+                
+                try {
+                  const parsed = JSON.parse(data);
+                  const content = parsed.choices?.[0]?.delta?.content || '';
+                  if (content) {
+                    fullText += content;
+                    onStream(content);
+                    console.log('📝 Stream chunk:', content);
+                  }
+                } catch (e) {
+                  console.log('🔍 Non-JSON data:', data);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Streaming error:', error);
+        } finally {
+          reader.releaseLock();
+        }
+      }
+      
+      console.log('✅ Full streamed text generated:', fullText.substring(0, 100) + '...');
+      return fullText;
+    } else {
+      const result = await response.json();
+      const content = result.choices?.[0]?.message?.content || result.content || result;
+      console.log('✅ Non-streaming text generated:', content.substring(0, 100) + '...');
+      return content;
+    }
   } catch (error) {
-    console.error('Error generating text:', error);
+    console.error('❌ Error generating text:', error);
     // Fallback to a simple response if API fails
-    return `Here's a creative idea for "${prompt}": This could be a modern web application with innovative design and interactive features. The concept involves creating something unique that combines technology with user experience.`;
+    const fallback = `Here's a creative idea for "${prompt}": This could be a modern web application with innovative design and interactive features. The concept involves creating something unique that combines technology with user experience.`;
+    console.log('🔄 Using fallback response');
+    return fallback;
   }
 };
 
