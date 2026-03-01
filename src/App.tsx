@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { User, MousePointer2, ArrowLeft, Loader2 } from 'lucide-react';
+import { User, ArrowLeft, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './utils/cn';
 import { auth, getCurrentUser, signInWithGoogle, signOutUser, createProject, getProjects, getUserProfile } from './lib/firebase';
@@ -8,57 +8,54 @@ import CodeMirror from '@uiw/react-codemirror';
 import { html as htmlLang } from '@codemirror/lang-html';
 
 // Orb Animation Component
-function OrbAnimation({ isActive }: { isActive: boolean }) {
+function OrbAnimation({ isActive, streamingText }: { isActive: boolean, streamingText?: string }) {
   if (!isActive) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
-      {/* Center orb */}
-      <motion.div
-        className="absolute w-4 h-4 rounded-full bg-white/40 backdrop-blur-sm border border-white/30"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.3 }}
-      />
+    <div className="fixed inset-0 flex flex-col items-center justify-center pointer-events-none z-50 px-6">
+      <div className="relative w-full max-w-2xl flex flex-col items-center gap-12">
+        {/* Animated Orbs */}
+        <div className="relative h-20 w-20">
+          <motion.div
+            className="absolute inset-0 rounded-full bg-white/20 backdrop-blur-3xl border border-white/30"
+            animate={{ scale: [1, 1.2, 1], rotate: 360 }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          />
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute w-4 h-4 rounded-full bg-blue-400/60 blur-sm"
+              animate={{
+                x: [0, Math.sin(i * 120 * Math.PI / 180) * 80, 0],
+                y: [0, Math.cos(i * 120 * Math.PI / 180) * 80, 0],
+                opacity: [0.2, 1, 0.2]
+              }}
+              transition={{ duration: 3, repeat: Infinity, delay: i * 0.5 }}
+            />
+          ))}
+        </div>
 
-      {/* Orbiting orbs */}
-      {[0, 1, 2].map((index) => (
-        <motion.div
-          key={index}
-          className="absolute w-3 h-3 rounded-full bg-white/30 backdrop-blur-sm border border-white/20"
-          initial={{
-            x: 0,
-            y: 0,
-            scale: 0,
-            opacity: 0
-          }}
-          animate={{
-            x: [
-              0,
-              Math.sin((index * 120) * Math.PI / 180) * 60,
-              Math.sin((index * 120 + 120) * Math.PI / 180) * 60,
-              Math.sin((index * 120 + 240) * Math.PI / 180) * 60,
-              Math.sin((index * 120) * Math.PI / 180) * 60,
-            ],
-            y: [
-              0,
-              Math.cos((index * 120) * Math.PI / 180) * 60,
-              Math.cos((index * 120 + 120) * Math.PI / 180) * 60,
-              Math.cos((index * 120 + 240) * Math.PI / 180) * 60,
-              Math.cos((index * 120) * Math.PI / 180) * 60,
-            ],
-            scale: [0, 1, 1, 1, 1],
-            opacity: [0, 1, 1, 1, 1]
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: index * 0.2,
-            times: [0, 0.2, 0.4, 0.6, 1]
-          }}
-        />
-      ))}
+        {/* Streaming Progress Section */}
+        <div className="w-full flex flex-col gap-6 items-center flex-none">
+          <div className="w-64 h-1 bg-white/10 rounded-full overflow-hidden relative">
+            <motion.div
+              className="absolute inset-y-0 left-0 bg-white/60 shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+              animate={{ width: ["0%", "100%"] }}
+              transition={{ duration: 15, ease: "easeInOut" }}
+            />
+          </div>
+
+          <div className="flex flex-col items-center gap-2 max-w-lg w-full">
+            <h3 className="text-white/40 text-[10px] tracking-[0.4em] uppercase font-bold text-center">Neural Constructing</h3>
+            <div className="w-full bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 min-h-[100px] max-h-[200px] overflow-hidden relative">
+              <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0a0a0a] to-transparent pointer-events-none z-10" />
+              <p className="text-white/60 text-xs font-mono leading-relaxed line-clamp-6 text-center">
+                {streamingText || 'Awakening high-dimensional structures...'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Wave bounce effect - initial burst */}
       {[0, 1, 2].map((index) => (
@@ -136,8 +133,6 @@ export function App() {
   const [messageHistory, setMessageHistory] = useState<Array<{ type: 'user' | 'ai' | 'system', content: string, timestamp: Date }>>([]);
   const [isDraft, setIsDraft] = useState(false);
   const [editInputValue, setEditInputValue] = useState('');
-  const [selectedElement, setSelectedElement] = useState<any>(null);
-  const [isSelectingElement, setIsSelectingElement] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Initialize Firebase and load data
@@ -185,13 +180,6 @@ export function App() {
           content: `Error: ${event.data.error.message}`,
           timestamp: new Date()
         }]);
-      } else if (event.data.type === 'elementSelected') {
-        console.log('🎯 Element selected in iframe:', event.data.element);
-        setSelectedElement(event.data.element);
-        setIsSelectingElement(false);
-        // Focus the input to allow user to type their change request
-        const input = document.getElementById('editInput') as HTMLInputElement;
-        if (input) input.focus();
       }
     };
 
@@ -296,44 +284,39 @@ export function App() {
       try {
         console.log('🤖 Starting AI generation process...');
 
-        // Generate content using Pollinations API with streaming
+        // Step 1: Generate Description with streaming
         const generatedText = await generateText(inputValue, {
           model: 'openai',
           temperature: 0.7,
           system: 'You are a helpful assistant that generates project descriptions and ideas for web applications, games, and websites. When users ask for games, create engaging game concepts. When users ask for apps, create modern application ideas. Always provide creative and detailed descriptions.',
           stream: true
         }, (chunk: string) => {
-          console.log('📥 Streaming chunk received:', chunk);
           setStreamingContent(prev => prev + chunk);
         });
 
-        console.log('✅ Text generation completed');
         setGeneratedContent(generatedText);
-        setStreamingContent('');
 
-        // Generate HTML project with VFS
+        // Step 2: Generate Website Content with streaming
         console.log('🏗️ Generating HTML project files...');
-        const files = await generateHTMLProject(inputValue, generatedText);
+        const files = await generateHTMLProject(inputValue, generatedText, (chunk: string) => {
+          setStreamingContent(prev => prev + chunk);
+        });
 
         // Immediately show the Project Maker
         setShowExampleUi(true);
         setShowOrbAnimation(false);
 
         // Generate an image for the project
-        console.log('🖼️ Generating image...');
         const imageUrl = generateImage(inputValue, {
           model: 'flux',
           width: 1024,
           height: 1024,
           enhance: true
         });
-
-        console.log('🖼️ Image URL generated:', imageUrl);
         setGeneratedImageUrl(imageUrl);
 
-        // If user is logged in, create a project
+        // Background: Save to DB
         if (currentUser) {
-          console.log('💾 Creating project in database...');
           await createProject({
             name: inputValue,
             author: userProfile?.username || currentUser.displayName || 'Anonymous',
@@ -342,8 +325,6 @@ export function App() {
             imageUrl,
             files
           });
-
-          // Refresh projects list
           const updatedProjects = await getProjects(currentUser.uid);
           setProjects(updatedProjects);
         }
@@ -358,7 +339,7 @@ export function App() {
   };
 
   // Generate HTML project with AI content
-  const generateHTMLProject = async (projectName: string, description: string) => {
+  const generateHTMLProject = async (projectName: string, description: string, onStream?: (chunk: string) => void) => {
     console.log('🏗️ Generating AI-powered website:', projectName);
 
     // Check if user is asking for a game
@@ -377,7 +358,7 @@ export function App() {
     try {
       // Generate website content using AI
       console.log('🤖 Calling AI to generate website content...');
-      const websiteContent = await generateWebsiteContent(projectName, description, isGame);
+      const websiteContent = await generateWebsiteContent(projectName, description, isGame, onStream);
 
       const files: ProjectFile[] = [
         {
@@ -1604,7 +1585,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // Generate complete HTML with embedded CSS and JS for iframe preview
-  const generateCompleteHTML = (files: ProjectFile[], isSelecting: boolean) => {
+  const generateCompleteHTML = (files: ProjectFile[]) => {
     const htmlFile = files.find(f => f.name === 'index.html');
     const cssFile = files.find(f => f.name === 'styles.css');
     const jsFile = files.find(f => f.name === 'script.js');
@@ -1619,7 +1600,7 @@ document.addEventListener('DOMContentLoaded', function() {
       completeHTML = completeHTML.replace('</head>', `${cssContent}\n</head>`);
     }
 
-    // Embed JavaScript with error detection and selection
+    // Embed JavaScript with error detection
     const scripts = `
       <script>
         (function() {
@@ -1630,39 +1611,6 @@ document.addEventListener('DOMContentLoaded', function() {
               error: { message: e.error.message }
             }, '*');
           });
-
-          // Element Selection Logic
-          let selectionActive = ${isSelecting};
-          if (selectionActive) {
-            document.body.style.cursor = 'crosshair';
-            const style = document.createElement('style');
-            style.innerHTML = \`
-              .ai-hover-select { outline: 2px solid #3b82f6 !important; outline-offset: -2px !important; }
-            \`;
-            document.head.appendChild(style);
-
-            document.addEventListener('mouseover', e => {
-              if (!selectionActive) return;
-              e.target.classList.add('ai-hover-select');
-            }, true);
-            document.addEventListener('mouseout', e => {
-              e.target.classList.remove('ai-hover-select');
-            }, true);
-            document.addEventListener('click', e => {
-              if (!selectionActive) return;
-              e.preventDefault();
-              e.stopPropagation();
-              const el = e.target;
-              window.parent.postMessage({
-                type: 'elementSelected',
-                element: {
-                  tag: el.tagName.toLowerCase(),
-                  className: el.className.replace('ai-hover-select', '').trim(),
-                  innerText: el.innerText.substring(0, 30)
-                }
-              }, '*');
-            }, true);
-          }
         })();
         ${jsFile ? jsFile.content : ''}
       </script>`;
@@ -1698,9 +1646,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const handleEditKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && editInputValue.trim()) {
-      const prompt = selectedElement
-        ? `In the code, find the ${selectedElement.tag} element with classes "${selectedElement.className}" and text "${selectedElement.innerText}" and apply these changes: ${editInputValue}`
-        : editInputValue;
+      const prompt = editInputValue;
 
       console.log('🚀 Sending edit request to AI:', prompt);
       setShowOrbAnimation(true);
@@ -1738,7 +1684,6 @@ document.addEventListener('DOMContentLoaded', function() {
       } finally {
         setLoading(false);
         setEditInputValue('');
-        setSelectedElement(null);
         setTimeout(() => setShowOrbAnimation(false), 1500);
       }
     }
@@ -1759,25 +1704,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </button>
             <div className="h-6 w-px bg-white/10 mx-2" />
             <h2 className="text-white text-sm tracking-widest uppercase opacity-70">Project Maker</h2>
-          </div>
-          <div className="flex gap-4">
-            {selectedElement && (
-              <div className="bg-blue-500/10 border border-blue-500/30 px-4 py-1.5 rounded-full text-blue-400 text-[10px] flex items-center gap-2">
-                <span className="opacity-50 tracking-widest">SELECTED</span>
-                <span className="font-bold text-blue-300">&lt;{selectedElement.tag}&gt;</span>
-                <button onClick={() => setSelectedElement(null)} className="hover:text-blue-200">✕</button>
-              </div>
-            )}
-            <button
-              onClick={() => setIsSelectingElement(!isSelectingElement)}
-              className={cn(
-                "flex items-center gap-2 px-6 py-2 rounded-full border transition-all text-xs tracking-widest uppercase",
-                isSelectingElement ? "bg-blue-600 border-blue-400 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]" : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white"
-              )}
-            >
-              <MousePointer2 className="w-3.5 h-3.5" />
-              <span>{isSelectingElement ? 'Pick Element' : 'Select Element'}</span>
-            </button>
           </div>
         </div>
 
@@ -1817,7 +1743,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div className="flex-1 relative">
               <iframe
-                srcDoc={generateCompleteHTML(projectFiles, isSelectingElement)}
+                srcDoc={generateCompleteHTML(projectFiles)}
                 className="w-full h-full border-0"
                 sandbox="allow-scripts allow-same-origin"
               />
@@ -1834,7 +1760,7 @@ document.addEventListener('DOMContentLoaded', function() {
               value={editInputValue}
               onChange={(e) => setEditInputValue(e.target.value)}
               onKeyDown={handleEditKeyDown}
-              placeholder={selectedElement ? "What change to apply to this element?" : "Describe changes to apply..."}
+              placeholder="Describe changes to apply..."
               className="flex-1 px-8 py-5 bg-transparent text-white text-lg outline-none placeholder:text-white/10 font-mono tracking-tight"
             />
             {loading && <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />}
@@ -2055,11 +1981,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
       {/* Orb Animation Overlay */}
       {showOrbAnimation && (
-        <div
-          className="fixed inset-0 z-50 cursor-pointer"
-          onClick={() => setShowOrbAnimation(false)}
-        >
-          <OrbAnimation isActive={showOrbAnimation} />
+        <div className="fixed inset-0 bg-[#0a0a0a]/90 backdrop-blur-2xl z-[100] flex items-center justify-center p-6 pointer-events-auto">
+          <OrbAnimation isActive={showOrbAnimation} streamingText={streamingContent} />
         </div>
       )}
 

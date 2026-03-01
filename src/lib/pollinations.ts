@@ -2,11 +2,11 @@
 const POLLINATIONS_BASE_URL = 'https://gen.pollinations.ai';
 
 // Generate complete website content using AI
-export const generateWebsiteContent = async (projectName: string, description: string, isGame: boolean) => {
+export const generateWebsiteContent = async (projectName: string, description: string, isGame: boolean, onStream?: (chunk: string) => void) => {
   try {
     console.log('🤖 Generating website content with AI:', projectName);
-    
-    const systemPrompt = isGame 
+
+    const systemPrompt = isGame
       ? `You are a web developer creating a complete, functional game website. Generate the HTML, CSS, and JavaScript for a "${projectName}" game based on this description: "${description}". 
         Create a fully working game with proper game mechanics, animations, and user interactions. 
         The game should be engaging, visually appealing, and include all necessary game features.`
@@ -26,8 +26,8 @@ export const generateWebsiteContent = async (projectName: string, description: s
         model: 'openai',
         messages: [
           { role: 'system', content: systemPrompt },
-          { 
-            role: 'user', 
+          {
+            role: 'user',
             content: `Generate the complete HTML, CSS, and JavaScript for "${projectName}". 
             Provide the code in a structured JSON format with three keys: 'html', 'css', and 'js'.
             The HTML should be a complete, valid HTML5 document.
@@ -37,7 +37,8 @@ export const generateWebsiteContent = async (projectName: string, description: s
           }
         ],
         temperature: 0.7,
-        response_format: { type: 'json_object' }
+        response_format: { type: 'json_object' },
+        stream: !!onStream
       })
     });
 
@@ -47,12 +48,39 @@ export const generateWebsiteContent = async (projectName: string, description: s
       throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json();
-    const content = result.choices?.[0]?.message?.content;
-    
-    if (!content) {
-      throw new Error('No content generated');
+    let content = '';
+    if (onStream) {
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices?.[0]?.delta?.content || '';
+                if (delta) {
+                  content += delta;
+                  onStream(delta);
+                }
+              } catch (e) { }
+            }
+          }
+        }
+        reader.releaseLock();
+      }
+    } else {
+      const result = await response.json();
+      content = result.choices?.[0]?.message?.content;
     }
+
+    if (!content) throw new Error('No content generated');
 
     // Try to parse JSON response
     let websiteContent;
@@ -74,7 +102,7 @@ export const generateWebsiteContent = async (projectName: string, description: s
 // Generate fallback content if AI fails
 const generateFallbackContent = (projectName: string, description: string, isGame: boolean) => {
   console.log('🔄 Using fallback content generation');
-  
+
   if (isGame) {
     return {
       html: `<!DOCTYPE html>
@@ -488,7 +516,7 @@ export const testApiConnection = async () => {
         })
       }
     });
-    
+
     if (response.ok) {
       const models = await response.json();
       console.log('✅ Pollinations API is alive! Available models:', models.data?.length || 0);
@@ -507,7 +535,7 @@ export const testApiConnection = async () => {
 export const generateText = async (prompt: string, options: TextGenerationOptions = {}, onStream?: (chunk: string) => void) => {
   try {
     console.log('🚀 Starting Pollinations text generation:', { prompt: prompt.substring(0, 50) + '...', model: options.model || 'openai' });
-    
+
     const response = await fetch(`${POLLINATIONS_BASE_URL}/v1/chat/completions`, {
       method: 'POST',
       headers: {
@@ -551,7 +579,7 @@ export const generateText = async (prompt: string, options: TextGenerationOption
 
             const chunk = decoder.decode(value, { stream: true });
             const lines = chunk.split('\n');
-            
+
             for (const line of lines) {
               if (line.startsWith('data: ')) {
                 const data = line.slice(6);
@@ -559,7 +587,7 @@ export const generateText = async (prompt: string, options: TextGenerationOption
                   console.log('✅ Streaming completed');
                   break;
                 }
-                
+
                 try {
                   const parsed = JSON.parse(data);
                   const content = parsed.choices?.[0]?.delta?.content || '';
@@ -580,7 +608,7 @@ export const generateText = async (prompt: string, options: TextGenerationOption
           reader.releaseLock();
         }
       }
-      
+
       console.log('✅ Full streamed text generated:', fullText.substring(0, 100) + '...');
       return fullText;
     } else {
@@ -599,7 +627,7 @@ export const generateText = async (prompt: string, options: TextGenerationOption
 };
 
 // Chat completions (OpenAI compatible)
-export const chatCompletion = async (messages: Array<{role: string, content: string}>, options: TextGenerationOptions = {}) => {
+export const chatCompletion = async (messages: Array<{ role: string, content: string }>, options: TextGenerationOptions = {}) => {
   try {
     const response = await fetch(`${POLLINATIONS_BASE_URL}/v1/chat/completions`, {
       method: 'POST',
