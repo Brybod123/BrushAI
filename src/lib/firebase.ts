@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, orderBy, limit, where } from 'firebase/firestore';
+import { getDatabase, ref, push, set, onValue, off, remove, query, orderByChild, limitToLast, get } from 'firebase/database';
 
 // Firebase configuration - replace with your config
 const firebaseConfig = {
@@ -19,13 +19,13 @@ const isDemoMode = !import.meta.env.VITE_FIREBASE_API_KEY ||
 // Initialize Firebase
 let app: any;
 let auth: any;
-let db: any;
+let database: any;
 
 if (!isDemoMode) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
+    database = getDatabase(app);
   } catch (error) {
     console.warn('Firebase initialization failed, running in demo mode:', error);
   }
@@ -67,19 +67,21 @@ export const getCurrentUser = (): User | null => {
   return auth.currentUser;
 };
 
-// Firestore functions
+// Realtime Database functions
 export const createProject = async (projectData: any) => {
-  if (isDemoMode || !db) {
+  if (isDemoMode || !database) {
     console.warn('Demo mode: Project creation not available');
     return 'demo-project-id';
   }
   try {
-    const docRef = await addDoc(collection(db, 'projects'), {
+    const projectsRef = ref(database, 'projects');
+    const newProjectRef = push(projectsRef);
+    await set(newProjectRef, {
       ...projectData,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
-    return docRef.id;
+    return newProjectRef.key;
   } catch (error) {
     console.error('Error creating project:', error);
     throw error;
@@ -87,7 +89,7 @@ export const createProject = async (projectData: any) => {
 };
 
 export const getProjects = async (userId?: string) => {
-  if (isDemoMode || !db) {
+  if (isDemoMode || !database) {
     console.warn('Demo mode: Returning sample projects');
     return [
       {
@@ -96,7 +98,7 @@ export const getProjects = async (userId?: string) => {
         author: 'Demo User',
         description: 'This is a sample project in demo mode.',
         userId: 'demo',
-        createdAt: new Date()
+        createdAt: new Date().toISOString()
       },
       {
         id: 'demo-2',
@@ -104,25 +106,36 @@ export const getProjects = async (userId?: string) => {
         author: 'Demo User',
         description: 'Another sample project for demonstration.',
         userId: 'demo',
-        createdAt: new Date()
+        createdAt: new Date().toISOString()
       }
     ];
   }
   try {
-    const projectsRef = collection(db, 'projects');
-    let q;
+    const projectsRef = ref(database, 'projects');
+    let queryRef = projectsRef;
     
     if (userId) {
-      q = query(projectsRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
-    } else {
-      q = query(projectsRef, orderBy('createdAt', 'desc'), limit(10));
+      // For user-specific projects, we'll filter on the client side
+      // since Realtime Database doesn't have complex queries like Firestore
     }
     
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const snapshot = await get(queryRef);
+    const projects: any[] = [];
+    
+    snapshot.forEach((childSnapshot) => {
+      const project = {
+        id: childSnapshot.key,
+        ...childSnapshot.val()
+      };
+      
+      // Filter by userId if specified
+      if (!userId || project.userId === userId) {
+        projects.push(project);
+      }
+    });
+    
+    // Sort by createdAt (newest first)
+    return projects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch (error) {
     console.error('Error getting projects:', error);
     throw error;
@@ -130,12 +143,16 @@ export const getProjects = async (userId?: string) => {
 };
 
 export const updateProject = async (projectId: string, projectData: any) => {
+  if (isDemoMode || !database) {
+    console.warn('Demo mode: Project update not available');
+    return;
+  }
   try {
-    const projectRef = doc(db, 'projects', projectId);
-    await updateDoc(projectRef, {
+    const projectRef = ref(database, `projects/${projectId}`);
+    await set(projectRef, {
       ...projectData,
-      updatedAt: new Date()
-    });
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
   } catch (error) {
     console.error('Error updating project:', error);
     throw error;
@@ -143,28 +160,33 @@ export const updateProject = async (projectId: string, projectData: any) => {
 };
 
 export const deleteProject = async (projectId: string) => {
+  if (isDemoMode || !database) {
+    console.warn('Demo mode: Project deletion not available');
+    return;
+  }
   try {
-    await deleteDoc(doc(db, 'projects', projectId));
+    const projectRef = ref(database, `projects/${projectId}`);
+    await remove(projectRef);
   } catch (error) {
     console.error('Error deleting project:', error);
     throw error;
   }
 };
 
-// User profile functions
+// User profile functions (using Realtime Database)
 export const createUserProfile = async (userId: string, userData: any) => {
-  if (isDemoMode || !db) {
+  if (isDemoMode || !database) {
     console.warn('Demo mode: User profile creation not available');
     return 'demo-profile-id';
   }
   try {
-    const docRef = await addDoc(collection(db, 'users'), {
-      userId,
+    const userRef = ref(database, `users/${userId}`);
+    await set(userRef, {
       ...userData,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
-    return docRef.id;
+    return userId;
   } catch (error) {
     console.error('Error creating user profile:', error);
     throw error;
@@ -172,10 +194,10 @@ export const createUserProfile = async (userId: string, userData: any) => {
 };
 
 export const getUserProfile = async (userId: string) => {
-  if (isDemoMode || !db) {
+  if (isDemoMode || !database) {
     console.warn('Demo mode: Returning demo user profile');
     return {
-      id: 'demo-profile',
+      id: userId,
       userId,
       username: 'Demo User',
       followers: 10,
@@ -183,22 +205,38 @@ export const getUserProfile = async (userId: string) => {
     };
   }
   try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('userId', '==', userId));
-    const querySnapshot = await getDocs(q);
+    const userRef = ref(database, `users/${userId}`);
+    const snapshot = await get(userRef);
     
-    if (querySnapshot.empty) {
+    if (snapshot.exists()) {
+      return {
+        id: userId,
+        ...snapshot.val()
+      };
+    } else {
       return null;
     }
-    
-    return {
-      id: querySnapshot.docs[0].id,
-      ...querySnapshot.docs[0].data()
-    };
   } catch (error) {
     console.error('Error getting user profile:', error);
     throw error;
   }
 };
 
-export { auth, db };
+export const updateUserProfile = async (userId: string, userData: any) => {
+  if (isDemoMode || !database) {
+    console.warn('Demo mode: User profile update not available');
+    return;
+  }
+  try {
+    const userRef = ref(database, `users/${userId}`);
+    await set(userRef, {
+      ...userData,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+};
+
+export { auth, database };
