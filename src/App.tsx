@@ -3,7 +3,7 @@ import { User, MousePointer2, ArrowLeft, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './utils/cn';
 import { auth, getCurrentUser, signInWithGoogle, signOutUser, createProject, getProjects, getUserProfile } from './lib/firebase';
-import { generateText, generateImage, chatCompletion } from './lib/pollinations';
+import { generateText, generateImage, chatCompletion, testApiConnection } from './lib/pollinations';
 
 // Orb Animation Component
 function OrbAnimation({ isActive }: { isActive: boolean }) {
@@ -125,6 +125,9 @@ export function App() {
   // Initialize Firebase and load data
   useEffect(() => {
     const initializeApp = async () => {
+      // Test Pollinations API connection
+      await testApiConnection();
+      
       const user = getCurrentUser();
       if (user) {
         setCurrentUser(user);
@@ -153,7 +156,7 @@ export function App() {
 
     // Listen for auth changes
     if (auth) {
-      const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      const unsubscribe = auth.onAuthStateChanged(async (user: any) => {
         setCurrentUser(user);
         if (user) {
           try {

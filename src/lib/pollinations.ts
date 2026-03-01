@@ -32,7 +32,32 @@ export interface AudioGenerationOptions {
   duration?: number;
 }
 
-// Text generation
+// Test API connection
+export const testApiConnection = async () => {
+  try {
+    const response = await fetch(`${POLLINATIONS_BASE_URL}/v1/models`, {
+      headers: {
+        ...(import.meta.env.VITE_POLLINATIONS_API_KEY && {
+          'Authorization': `Bearer ${import.meta.env.VITE_POLLINATIONS_API_KEY}`
+        })
+      }
+    });
+    
+    if (response.ok) {
+      const models = await response.json();
+      console.log('✅ Pollinations API is alive! Available models:', models.data?.length || 0);
+      return true;
+    } else {
+      console.error('❌ Pollinations API test failed:', response.status);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Pollinations API connection error:', error);
+    return false;
+  }
+};
+
+// Text generation - simplified
 export const generateText = async (prompt: string, options: TextGenerationOptions = {}) => {
   try {
     const response = await fetch(`${POLLINATIONS_BASE_URL}/v1/chat/completions`, {
