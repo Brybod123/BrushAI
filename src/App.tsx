@@ -18,17 +18,17 @@ function OrbAnimation({ isActive }: { isActive: boolean }) {
         animate={{ scale: 1 }}
         transition={{ duration: 0.3 }}
       />
-      
+
       {/* Orbiting orbs */}
       {[0, 1, 2].map((index) => (
         <motion.div
           key={index}
           className="absolute w-3 h-3 rounded-full bg-white/30 backdrop-blur-sm border border-white/20"
-          initial={{ 
-            x: 0, 
+          initial={{
+            x: 0,
             y: 0,
             scale: 0,
-            opacity: 0 
+            opacity: 0
           }}
           animate={{
             x: [
@@ -57,16 +57,16 @@ function OrbAnimation({ isActive }: { isActive: boolean }) {
           }}
         />
       ))}
-      
+
       {/* Wave bounce effect - initial burst */}
       {[0, 1, 2].map((index) => (
         <motion.div
           key={`wave-${index}`}
           className="absolute w-3 h-3 rounded-full bg-white/20"
-          initial={{ 
+          initial={{
             y: 0,
             scale: 0,
-            opacity: 0 
+            opacity: 0
           }}
           animate={{
             y: [-40, 0, 40, 0],
@@ -131,7 +131,7 @@ export function App() {
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [messageHistory, setMessageHistory] = useState<Array<{type: 'user' | 'ai' | 'system', content: string, timestamp: Date}>>([]);
+  const [messageHistory, setMessageHistory] = useState<Array<{ type: 'user' | 'ai' | 'system', content: string, timestamp: Date }>>([]);
   const [isDraft, setIsDraft] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -140,7 +140,7 @@ export function App() {
     const initializeApp = async () => {
       // Test Pollinations API connection
       await testApiConnection();
-      
+
       const user = getCurrentUser();
       if (user) {
         setCurrentUser(user);
@@ -173,7 +173,7 @@ export function App() {
         console.error('🚨 Game error detected:', event.data.error);
         setHasError(true);
         setErrorMessage(event.data.error.message);
-        
+
         // Add to message history
         setMessageHistory(prev => [...prev, {
           type: 'system',
@@ -186,49 +186,49 @@ export function App() {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
 
-  // Handle AI fix for errors
-  const handleAIFix = async () => {
-    if (!errorMessage) return;
-    
-    console.log('🔧 Requesting AI fix for error:', errorMessage);
-    
-    try {
-      const fixResponse = await generateText(`Fix this JavaScript error in the game: ${errorMessage}`, {
-        model: 'openai',
-        temperature: 0.3,
-        system: 'You are a JavaScript debugging expert. Analyze the error and provide a complete fix. Return only the corrected JavaScript code, no explanations.',
-        stream: false
-      });
-      
-      // Add to message history
-      setMessageHistory(prev => [...prev, {
-        type: 'system',
-        content: `AI Fix Request: ${errorMessage}`,
-        timestamp: new Date()
-      }]);
-      
-      setMessageHistory(prev => [...prev, {
-        type: 'ai',
-        content: `AI Fix Applied: ${fixResponse}`,
-        timestamp: new Date()
-      }]);
-      
-      // Apply the fix by regenerating the project
-      if (inputValue) {
-        const files = await generateHTMLProject(inputValue, generatedContent);
-        setProjectFiles(files);
-        setHasError(false);
-        setErrorMessage('');
+    // Handle AI fix for errors
+    const handleAIFix = async () => {
+      if (!errorMessage) return;
+
+      console.log('🔧 Requesting AI fix for error:', errorMessage);
+
+      try {
+        const fixResponse = await generateText(`Fix this JavaScript error in the game: ${errorMessage}`, {
+          model: 'openai',
+          temperature: 0.3,
+          system: 'You are a JavaScript debugging expert. Analyze the error and provide a complete fix. Return only the corrected JavaScript code, no explanations.',
+          stream: false
+        });
+
+        // Add to message history
+        setMessageHistory(prev => [...prev, {
+          type: 'system',
+          content: `AI Fix Request: ${errorMessage}`,
+          timestamp: new Date()
+        }]);
+
+        setMessageHistory(prev => [...prev, {
+          type: 'ai',
+          content: `AI Fix Applied: ${fixResponse}`,
+          timestamp: new Date()
+        }]);
+
+        // Apply the fix by regenerating the project
+        if (inputValue) {
+          const files = await generateHTMLProject(inputValue, generatedContent);
+          setProjectFiles(files);
+          setHasError(false);
+          setErrorMessage('');
+        }
+      } catch (error) {
+        console.error('❌ Error getting AI fix:', error);
+        setMessageHistory(prev => [...prev, {
+          type: 'system',
+          content: `AI Fix Failed: ${error}`,
+          timestamp: new Date()
+        }]);
       }
-    } catch (error) {
-      console.error('❌ Error getting AI fix:', error);
-      setMessageHistory(prev => [...prev, {
-        type: 'system',
-        content: `AI Fix Failed: ${error}`,
-        timestamp: new Date()
-      }]);
-    }
-  };
+    };
 
     // Listen for auth changes
     if (auth) {
@@ -280,10 +280,10 @@ export function App() {
       setStreamingContent('');
       setGeneratedContent('');
       setProjectFiles([]);
-      
+
       try {
         console.log('🤖 Starting AI generation process...');
-        
+
         // Generate content using Pollinations API with streaming
         const generatedText = await generateText(inputValue, {
           model: 'openai',
@@ -294,15 +294,15 @@ export function App() {
           console.log('📥 Streaming chunk received:', chunk);
           setStreamingContent(prev => prev + chunk);
         });
-        
+
         console.log('✅ Text generation completed');
         setGeneratedContent(generatedText);
         setStreamingContent('');
-        
+
         // Generate HTML project with VFS
         console.log('🏗️ Generating HTML project files...');
         const files = await generateHTMLProject(inputValue, generatedText);
-        
+
         // Generate an image for the project
         console.log('🖼️ Generating image...');
         const imageUrl = generateImage(inputValue, {
@@ -311,10 +311,10 @@ export function App() {
           height: 1024,
           enhance: true
         });
-        
+
         console.log('🖼️ Image URL generated:', imageUrl);
         setGeneratedImageUrl(imageUrl);
-        
+
         // If user is logged in, create a project
         if (currentUser) {
           console.log('💾 Creating project in database...');
@@ -326,15 +326,15 @@ export function App() {
             imageUrl,
             files
           });
-          
+
           console.log('✅ Project created with ID:', projectId);
-          
+
           // Refresh projects list
           const updatedProjects = await getProjects(currentUser.uid);
           setProjects(updatedProjects);
           console.log('🔄 Projects list refreshed');
         }
-        
+
       } catch (error) {
         console.error('❌ Error in AI generation process:', error);
         setGeneratedContent('Failed to generate content. Please try again.');
@@ -354,25 +354,25 @@ export function App() {
   // Generate HTML project with AI content
   const generateHTMLProject = async (projectName: string, description: string) => {
     console.log('🏗️ Generating AI-powered website:', projectName);
-    
+
     // Check if user is asking for a game
-    const isGame = projectName.toLowerCase().includes('game') || 
-                   projectName.toLowerCase().includes('play') ||
-                   projectName.toLowerCase().includes('puzzle') ||
-                   projectName.toLowerCase().includes('quiz') ||
-                   projectName.toLowerCase().includes('racing') ||
-                   projectName.toLowerCase().includes('adventure') ||
-                   projectName.toLowerCase().includes('break') ||
-                   projectName.toLowerCase().includes('blocks') ||
-                   projectName.toLowerCase().includes('minecraft') ||
-                   projectName.toLowerCase().includes('mine') ||
-                   projectName.toLowerCase().includes('block');
-    
+    const isGame = projectName.toLowerCase().includes('game') ||
+      projectName.toLowerCase().includes('play') ||
+      projectName.toLowerCase().includes('puzzle') ||
+      projectName.toLowerCase().includes('quiz') ||
+      projectName.toLowerCase().includes('racing') ||
+      projectName.toLowerCase().includes('adventure') ||
+      projectName.toLowerCase().includes('break') ||
+      projectName.toLowerCase().includes('blocks') ||
+      projectName.toLowerCase().includes('minecraft') ||
+      projectName.toLowerCase().includes('mine') ||
+      projectName.toLowerCase().includes('block');
+
     try {
       // Generate website content using AI
       console.log('🤖 Calling AI to generate website content...');
       const websiteContent = await generateWebsiteContent(projectName, description, isGame);
-      
+
       const files: ProjectFile[] = [
         {
           name: 'index.html',
@@ -390,7 +390,7 @@ export function App() {
           content: websiteContent.js
         }
       ];
-      
+
       console.log('📁 AI-generated', files.length, 'files:', files.map(f => f.name));
       setProjectFiles(files);
       return files;
@@ -438,11 +438,11 @@ export function App() {
   // Generate game HTML
   const generateGameHTML = (projectName: string, description: string) => {
     // Check if it's a block-breaking game
-    const isBlockGame = projectName.toLowerCase().includes('break') || 
-                        projectName.toLowerCase().includes('blocks') ||
-                        projectName.toLowerCase().includes('minecraft') ||
-                        projectName.toLowerCase().includes('mine');
-    
+    const isBlockGame = projectName.toLowerCase().includes('break') ||
+      projectName.toLowerCase().includes('blocks') ||
+      projectName.toLowerCase().includes('minecraft') ||
+      projectName.toLowerCase().includes('mine');
+
     if (isBlockGame) {
       return `<!DOCTYPE html>
 <html lang="en">
@@ -1002,11 +1002,11 @@ footer {
   // Generate game JavaScript
   const generateGameJS = (projectName: string) => {
     // Check if it's a block-breaking game
-    const isBlockGame = projectName.toLowerCase().includes('break') || 
-                        projectName.toLowerCase().includes('blocks') ||
-                        projectName.toLowerCase().includes('minecraft') ||
-                        projectName.toLowerCase().includes('mine');
-    
+    const isBlockGame = projectName.toLowerCase().includes('break') ||
+      projectName.toLowerCase().includes('blocks') ||
+      projectName.toLowerCase().includes('minecraft') ||
+      projectName.toLowerCase().includes('mine');
+
     if (isBlockGame) {
       return `// Block Breaking Game JavaScript for ${projectName}
 document.addEventListener('DOMContentLoaded', function() {
@@ -1602,17 +1602,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const htmlFile = files.find(f => f.name === 'index.html');
     const cssFile = files.find(f => f.name === 'styles.css');
     const jsFile = files.find(f => f.name === 'script.js');
-    
+
     if (!htmlFile) return '';
-    
+
     let completeHTML = htmlFile.content;
-    
+
     // Embed CSS
     if (cssFile) {
       const cssContent = `<style>\n${cssFile.content}\n</style>`;
       completeHTML = completeHTML.replace('</head>', `${cssContent}\n</head>`);
     }
-    
+
     // Embed JavaScript with error detection
     if (jsFile) {
       const jsWithErrorDetection = `
@@ -1648,7 +1648,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </script>`;
       completeHTML = completeHTML.replace('</body>', `${jsWithErrorDetection}\n</body>`);
     }
-    
+
     return completeHTML;
   };
 
@@ -1676,19 +1676,19 @@ document.addEventListener('DOMContentLoaded', function() {
     return (
       <div className="min-h-screen bg-[#808080] relative overflow-hidden font-mono p-6 flex gap-6 h-screen">
         {/* Global Noise Texture Overlay */}
-        <div 
+        <div
           className="absolute inset-0 pointer-events-none z-10"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
             opacity: 0.08,
           }}
         />
-        
+
         {/* Left Section - Live Preview Only */}
         <div className="flex-1 relative z-20 flex flex-col gap-6">
           {projectFiles.length > 0 ? (
             <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-6 overflow-hidden relative">
-              <div 
+              <div
                 className="absolute inset-0 pointer-events-none opacity-10"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -1712,7 +1712,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           ) : (
             <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-10 overflow-hidden relative flex items-center justify-center">
-              <div 
+              <div
                 className="absolute inset-0 pointer-events-none opacity-10"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -1737,7 +1737,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div className="w-96 relative z-20 flex flex-col gap-6">
           {/* Top Info Card */}
           <div className="flex-[4] bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-10 overflow-hidden relative">
-            <div 
+            <div
               className="absolute inset-0 pointer-events-none opacity-10"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -1750,26 +1750,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
           {/* Bottom Input Field Container */}
           <div className="flex-none bg-white/5 backdrop-blur-xl rounded-[40px] border border-white/10 shadow-2xl p-2 relative overflow-hidden">
-             <div className="bg-white/10 rounded-[32px] overflow-hidden relative flex items-center gap-2 px-3">
-                <input
-                  type="text"
-                  placeholder="Any Changes?"
-                  className="flex-1 px-4 py-5 bg-transparent text-white placeholder-white/50 outline-none font-mono text-lg"
-                />
-                <button 
-                  className="flex items-center gap-2 px-4 py-3 bg-white/20 rounded-[24px] border border-white/30 hover:bg-white/30 transition-all group"
-                  onClick={() => alert('Element selection mode activated! Click on any element on the page to select it for specific questions.')}
-                >
-                  <MousePointer2 className="w-5 h-5 text-white/80 group-hover:text-white transition-colors" />
-                  <span className="text-white/70 text-sm font-mono">Select Element</span>
-                </button>
-                <div 
-                  className="absolute inset-0 pointer-events-none opacity-5"
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                  }}
-                />
-             </div>
+            <div className="bg-white/10 rounded-[32px] overflow-hidden relative flex items-center gap-2 px-3">
+              <input
+                type="text"
+                placeholder="Any Changes?"
+                className="flex-1 px-4 py-5 bg-transparent text-white placeholder-white/50 outline-none font-mono text-lg"
+              />
+              <button
+                className="flex items-center gap-2 px-4 py-3 bg-white/20 rounded-[24px] border border-white/30 hover:bg-white/30 transition-all group"
+                onClick={() => alert('Element selection mode activated! Click on any element on the page to select it for specific questions.')}
+              >
+                <MousePointer2 className="w-5 h-5 text-white/80 group-hover:text-white transition-colors" />
+                <span className="text-white/70 text-sm font-mono">Select Element</span>
+              </button>
+              <div
+                className="absolute inset-0 pointer-events-none opacity-5"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1779,16 +1779,16 @@ document.addEventListener('DOMContentLoaded', function() {
   return (
     <div className="min-h-screen bg-[#808080] relative overflow-hidden font-mono">
       {/* Global Noise Texture Overlay */}
-      <div 
+      <div
         className="absolute inset-0 pointer-events-none z-10"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
           opacity: 0.08,
         }}
       />
-      
+
       {/* Grain texture overlay with blend mode */}
-      <div 
+      <div
         className="absolute inset-0 pointer-events-none z-10 mix-blend-overlay"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E")`,
@@ -1821,7 +1821,7 @@ document.addEventListener('DOMContentLoaded', function() {
               </button>
             )}
             {/* Input specific grain/noise overlay */}
-            <div 
+            <div
               className="absolute inset-0 pointer-events-none rounded-[24px]"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -1832,7 +1832,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
           {/* Profile Section */}
           <div className="relative" ref={profileRef}>
-            <button 
+            <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className={cn(
                 "w-12 h-12 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/20 hover:bg-white/15 transition-all shadow-xl relative overflow-hidden group",
@@ -1841,7 +1841,7 @@ document.addEventListener('DOMContentLoaded', function() {
             >
               <User className="w-6 h-6 text-white/80 group-hover:text-white transition-colors" />
               {/* Noise overlay for the button */}
-              <div 
+              <div
                 className="absolute inset-0 pointer-events-none rounded-2xl"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -1860,7 +1860,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   className="absolute right-0 mt-4 w-[280px] bg-white/15 backdrop-blur-3xl rounded-[28px] border border-white/30 shadow-2xl p-6 z-50 overflow-hidden"
                 >
                   {/* Menu inner noise */}
-                  <div 
+                  <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -1880,25 +1880,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         ) : (
                           <User className="w-10 h-10 text-white/20" />
                         )}
-                        <div 
+                        <div
                           className="absolute inset-0 pointer-events-none"
                           style={{
                             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
                             opacity: 0.15,
                           }}
-                    ) : (
-                      <div className="w-full h-full bg-white/20 flex items-center justify-center">
-                        <span className="text-white/50 text-2xl">📄</span>
+                        />
                       </div>
-                        <button 
-                          onClick={handleSignIn}
-                          className="flex-1 h-[72px] bg-white/30 backdrop-blur-md rounded-[24px] border border-white/30 flex items-center justify-center hover:bg-white/40 transition-all shadow-sm"
-                        >
-                          <span className="text-white text-sm font-mono">Sign In</span>
-                        </button>
-                      </>
-                    )}
+                    </div>
                   </div>
+
+                  {/* Sign In / Sign Out */}
+                  {!currentUser && (
+                    <button
+                      onClick={handleSignIn}
+                      className="w-full h-[48px] bg-white/20 backdrop-blur-md rounded-[24px] border border-white/30 flex items-center justify-center hover:bg-white/30 transition-all shadow-sm relative z-10"
+                    >
+                      <span className="text-white text-sm font-mono">Sign In</span>
+                    </button>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1909,17 +1910,21 @@ document.addEventListener('DOMContentLoaded', function() {
         <div className="mt-16 flex gap-8 ml-4 max-w-6xl mx-auto w-full">
           {projects.length > 0 ? (
             projects.slice(0, 6).map((project) => (
-              <div 
-                key={project.id} 
+              <div
+                key={project.id}
                 className="relative group flex-shrink-0 cursor-pointer"
               >
-                {/* Card Background with Noise */}
-                <div 
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                    opacity: 0.1,
-                  }}
-                />
+                <div className="w-[150px] h-[170px] bg-white/10 backdrop-blur-xl rounded-[32px] overflow-hidden border border-white/20 shadow-2xl transition-transform hover:scale-[1.02]">
+                  {/* Image/Preview Area */}
+                  <div className="h-[120px] bg-white/15 relative overflow-hidden">
+                    {/* Card Background with Noise */}
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                        opacity: 0.1,
+                      }}
+                    />
                   </div>
                   {/* Card Footer */}
                   <div className="h-[50px] bg-white/20 backdrop-blur-2xl px-5 flex items-center justify-between relative border-t border-white/10">
@@ -1936,8 +1941,8 @@ document.addEventListener('DOMContentLoaded', function() {
           ) : (
             // Fallback to placeholder projects if no real projects
             [1, 2].map((i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="relative group flex-shrink-0 cursor-pointer"
                 onClick={() => setViewingProject({
                   id: `placeholder-${i}`,
@@ -1951,8 +1956,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div className="w-[150px] h-[170px] bg-white/10 backdrop-blur-xl rounded-[32px] overflow-hidden border border-white/20 shadow-2xl transition-transform hover:scale-[1.02]">
                   {/* Image/Preview Placeholder */}
                   <div className="h-[120px] bg-white/15 relative overflow-hidden">
-                     {/* Card specific grain/noise overlay */}
-                    <div 
+                    {/* Card specific grain/noise overlay */}
+                    <div
                       className="absolute inset-0 pointer-events-none"
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -1976,7 +1981,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       {/* Orb Animation Overlay */}
       {showOrbAnimation && (
-        <div 
+        <div
           className="fixed inset-0 z-50 cursor-pointer"
           onClick={() => setShowOrbAnimation(false)}
         >
@@ -2003,7 +2008,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div className="absolute inset-0 bg-noise opacity-40 pointer-events-none" />
                   </div>
                 </div>
-                
+
                 <div className="flex-1">
                   <p className="font-mono text-sm text-white/70 mb-1">10 Followers - 5,097 Views</p>
                   <h2 className="text-4xl font-mono text-white mb-4">Brybod123</h2>
@@ -2020,8 +2025,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
                 {[1, 2, 3, 4].map((i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className="aspect-[4/5] bg-white/20 backdrop-blur-md rounded-[32px] border border-white/30 relative overflow-hidden group shadow-xl hover:scale-[1.02] transition-transform cursor-pointer"
                     onClick={() => setViewingProject({
                       name: `Project ${i}`,
@@ -2035,7 +2040,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ))}
               </div>
             </div>
-            
+
             <div className="fixed inset-0 pointer-events-none z-[-1]">
               <div className="absolute inset-0 opacity-[0.12] mix-blend-overlay bg-noise" />
             </div>
