@@ -132,6 +132,7 @@ export function App() {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [messageHistory, setMessageHistory] = useState<Array<{type: 'user' | 'ai' | 'system', content: string, timestamp: Date}>>([]);
+  const [isDraft, setIsDraft] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Initialize Firebase and load data
@@ -1732,8 +1733,8 @@ document.addEventListener('DOMContentLoaded', function() {
           )}
         </div>
 
-        {/* Right Section - Sidebar */}
-        <div className="flex-1 relative z-20 flex flex-col gap-6">
+        {/* Right Section - Sidebar (smaller) */}
+        <div className="w-96 relative z-20 flex flex-col gap-6">
           {/* Top Info Card */}
           <div className="flex-[4] bg-white/10 backdrop-blur-xl rounded-[40px] border border-white/15 shadow-2xl p-10 overflow-hidden relative">
             <div 
@@ -1927,25 +1928,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div 
                 key={project.id} 
                 className="relative group flex-shrink-0 cursor-pointer"
-                onClick={() => setViewingProject(project)}
-              >
-                <div className="w-[150px] h-[170px] bg-white/10 backdrop-blur-xl rounded-[32px] overflow-hidden border border-white/20 shadow-2xl transition-transform hover:scale-[1.02]">
-                  {/* Image/Preview */}
-                  <div className="h-[120px] bg-white/15 relative overflow-hidden">
-                    {project.imageUrl ? (
-                      <img 
-                        src={project.imageUrl} 
-                        alt={project.name} 
-                        className="w-full h-full object-cover"
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <User className="w-8 h-8 text-white/30" />
-                      </div>
-                    )}
-                    {/* Card specific grain/noise overlay */}
-                    <div 
-                      className="absolute inset-0 pointer-events-none"
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
                         opacity: 0.1,
