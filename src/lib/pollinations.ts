@@ -35,19 +35,24 @@ export interface AudioGenerationOptions {
 // Text generation
 export const generateText = async (prompt: string, options: TextGenerationOptions = {}) => {
   try {
-    const response = await fetch(`${POLLINATIONS_BASE_URL}/prompts`, {
+    const response = await fetch(`${POLLINATIONS_BASE_URL}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(import.meta.env.VITE_POLLINATIONS_API_KEY && {
+          'Authorization': `Bearer ${import.meta.env.VITE_POLLINATIONS_API_KEY}`
+        })
       },
       body: JSON.stringify({
-        prompt,
         model: options.model || 'openai',
+        messages: [
+          { role: 'system', content: options.system || 'You are a helpful assistant that generates project descriptions and ideas.' },
+          { role: 'user', content: prompt }
+        ],
         temperature: options.temperature || 0.7,
         seed: options.seed || 0,
-        systemPrompt: options.system,
-        jsonMode: options.json || false,
-        stream: options.stream || false
+        ...(options.json && { response_format: { type: 'json_object' } }),
+        ...(options.stream !== undefined && { stream: options.stream })
       })
     });
 
@@ -58,7 +63,7 @@ export const generateText = async (prompt: string, options: TextGenerationOption
     }
 
     const result = await response.json();
-    return result.text || result.content || result;
+    return result.choices?.[0]?.message?.content || result.content || result;
   } catch (error) {
     console.error('Error generating text:', error);
     // Fallback to a simple response if API fails
@@ -100,7 +105,7 @@ export const chatCompletion = async (messages: Array<{role: string, content: str
 
 // Image generation
 export const generateImage = (prompt: string, options: ImageGenerationOptions = {}) => {
-  // Use the simple URL-based API that Pollinations provides
+  // Use the gen.pollinations.ai image generation endpoint
   const params = new URLSearchParams({
     prompt,
     model: options.model || 'flux',
@@ -108,13 +113,13 @@ export const generateImage = (prompt: string, options: ImageGenerationOptions = 
     height: options.height?.toString() || '1024',
     seed: options.seed?.toString() || '0',
     ...(options.enhance && { enhance: options.enhance.toString() }),
-    ...(options.negative_prompt && { negativePrompt: options.negative_prompt }),
+    ...(options.negative_prompt && { negative_prompt: options.negative_prompt }),
     ...(options.safe && { safe: options.safe.toString() }),
     ...(options.quality && { quality: options.quality }),
     ...(options.transparent && { transparent: options.transparent.toString() })
   });
 
-  return `https://pollinations.ai/p/${encodeURIComponent(prompt)}?${params}`;
+  return `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}?${params}`;
 };
 
 // Audio generation
